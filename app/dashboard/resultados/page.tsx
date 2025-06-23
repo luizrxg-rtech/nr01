@@ -287,16 +287,16 @@ export default function DashboardResultados() {
                     height={100}
                   />
                   <YAxis domain={[0, 5]} />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${Number(value).toFixed(1)}`,
-                      'Média'
-                    ]}
-                    labelFormatter={(label, payload) => {
-                      const item = payload?.[0]?.payload;
-                      return item?.perguntaCompleta || label;
-                    }}
-                  />
+                  {/*<Tooltip */}
+                  {/*  formatter={(value, name, props) => [*/}
+                  {/*    `${Number(value).toFixed(1)}`,*/}
+                  {/*    'Média'*/}
+                  {/*  ]}*/}
+                  {/*  labelFormatter={(label, payload) => {*/}
+                  {/*    const item = payload?.[0]?.payload;*/}
+                  {/*    return item?.perguntaCompleta || label;*/}
+                  {/*  }}*/}
+                  {/*/>*/}
                   <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -416,16 +416,16 @@ export default function DashboardResultados() {
                     fillOpacity={0.3}
                     strokeWidth={2}
                   />
-                  <Tooltip 
-                    formatter={(value, name, props) => [
-                      `${Number(value).toFixed(1)}`,
-                      'Pontuação'
-                    ]}
-                    labelFormatter={(label, payload) => {
-                      const item = payload?.[0]?.payload;
-                      return item?.fullText || label;
-                    }}
-                  />
+                  {/*<Tooltip */}
+                  {/*  formatter={(value, name, props) => [*/}
+                  {/*    `${Number(value).toFixed(1)}`,*/}
+                  {/*    'Pontuação'*/}
+                  {/*  ]}*/}
+                  {/*  labelFormatter={(label, payload) => {*/}
+                  {/*    const item = payload?.[0]?.payload;*/}
+                  {/*    return item?.fullText || label;*/}
+                  {/*  }}*/}
+                  {/*/>*/}
                 </RadarChart>
               </ResponsiveContainer>
             </CardContent>

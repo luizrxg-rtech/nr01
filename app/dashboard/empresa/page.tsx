@@ -177,7 +177,7 @@ export default function CadastroEmpresa() {
     );
   }
 
-  const isReadOnly = empresa && !isEditing;
+  const isReadOnly = (empresa && !isEditing) || false;
 
   return (
     <div className="space-y-8">

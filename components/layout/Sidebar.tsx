@@ -104,7 +104,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <div className="w-6 h-6 brand-gradient rounded flex items-center justify-center">
               <FileText className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-gray-900">NR01</span>
+            <span className="font-semibold text-gray-900">Gramed</span>
           </div>
         </div>
 
@@ -127,7 +127,7 @@ function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () 
             <FileText className="w-5 h-5 text-white" />
           </div>
           <h1 className="text-xl font-bold bg-gradient-to-r from-brand-green to-brand-blue bg-clip-text text-transparent">
-            NR01
+            Gramed
           </h1>
         </div>
         {onClose && (
@@ -171,7 +171,6 @@ function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-white/20">
         <p className="text-xs text-gray-500 text-center">
-          NR01 v1.0
         </p>
       </div>
     </div>

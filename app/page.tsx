@@ -55,7 +55,7 @@ export default function Home() {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-brand-green to-brand-blue bg-clip-text text-transparent">
-              NR01
+              Gramed
             </h1>
           </div>
           <Button 

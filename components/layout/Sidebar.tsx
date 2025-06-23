@@ -1,0 +1,179 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { 
+  Building2, 
+  Users, 
+  FileText, 
+  MessageSquare, 
+  BarChart3, 
+  Menu, 
+  X,
+  Home
+} from 'lucide-react';
+
+const navigation = [
+  {
+    name: 'Dashboard',
+    href: '/dashboard',
+    icon: Home,
+  },
+  {
+    name: 'Cadastro de Empresa',
+    href: '/dashboard/empresa',
+    icon: Building2,
+  },
+  {
+    name: 'Funcionários',
+    href: '/dashboard/funcionarios',
+    icon: Users,
+  },
+  {
+    name: 'Formulários',
+    href: '/dashboard/formularios',
+    icon: FileText,
+  },
+  {
+    name: 'Respostas',
+    href: '/dashboard/respostas',
+    icon: MessageSquare,
+  },
+  {
+    name: 'Resultados',
+    href: '/dashboard/resultados',
+    icon: BarChart3,
+  },
+];
+
+interface SidebarProps {
+  children: React.ReactNode;
+}
+
+export default function Sidebar({ children }: SidebarProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+      {/* Mobile sidebar overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 lg:hidden"
+          >
+            <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
+            <motion.div
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              className="fixed left-0 top-0 bottom-0 w-64 glass-card"
+            >
+              <SidebarContent pathname={pathname} onClose={() => setSidebarOpen(false)} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
+        <div className="glass-card border-r border-white/20 flex flex-col flex-grow">
+          <SidebarContent pathname={pathname} />
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="lg:pl-64">
+        {/* Mobile header */}
+        <div className="lg:hidden bg-white/80 backdrop-blur-md border-b border-white/20 px-4 py-3 flex items-center justify-between">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="w-6 h-6" />
+          </Button>
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 brand-gradient rounded flex items-center justify-center">
+              <FileText className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-semibold text-gray-900">NR01</span>
+          </div>
+        </div>
+
+        {/* Page content */}
+        <main className="p-4 lg:p-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () => void }) {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Logo */}
+      <div className="flex items-center px-6 py-6 border-b border-white/20">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 brand-gradient rounded-lg flex items-center justify-center">
+            <FileText className="w-5 h-5 text-white" />
+          </div>
+          <h1 className="text-xl font-bold bg-gradient-to-r from-brand-green to-brand-blue bg-clip-text text-transparent">
+            NR01
+          </h1>
+        </div>
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="ml-auto lg:hidden"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-6 space-y-2">
+        {navigation.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              onClick={onClose}
+              className={cn(
+                'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group',
+                isActive
+                  ? 'bg-gradient-to-r from-brand-green to-brand-blue text-white shadow-lg'
+                  : 'text-gray-700 hover:bg-white/50 hover:text-gray-900'
+              )}
+            >
+              <item.icon className={cn(
+                'w-5 h-5 mr-3 transition-colors',
+                isActive ? 'text-white' : 'text-gray-500 group-hover:text-gray-700'
+              )} />
+              {item.name}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="px-6 py-4 border-t border-white/20">
+        <p className="text-xs text-gray-500 text-center">
+          NR01 v1.0
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -77,7 +77,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="glass-card p-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             Formulário não encontrado
           </h2>
           <p className="text-gray-600 mb-6">
@@ -158,7 +158,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
               <CheckCircle className="w-8 h-8 text-green-600" />
             </motion.div>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            <h2 className="text-2xl font-bold text-foreground mb-4">
               Obrigado pela sua participação!
             </h2>
 
@@ -202,7 +202,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                   <FileText className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl text-gray-900">
+                  <CardTitle className="text-xl text-foreground">
                     {formulario.nome}
                   </CardTitle>
                   {formulario.descricao && (
@@ -234,7 +234,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
         >
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-lg text-gray-900">
+              <CardTitle className="text-lg text-foreground">
                 {currentPergunta.texto}
               </CardTitle>
             </CardHeader>

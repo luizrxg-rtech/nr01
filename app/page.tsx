@@ -102,7 +102,7 @@ export default function Home() {
             transition={{ delay: 0.4 }}
             className="text-center mb-16"
           >
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">
+            <h3 className="text-3xl font-bold text-foreground mb-4">
               Recursos Principais
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto">
@@ -122,7 +122,7 @@ export default function Home() {
                   <div className="w-12 h-12 brand-gradient rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
-                  <h4 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h4 className="text-xl font-semibold text-foreground mb-2">
                     {feature.title}
                   </h4>
                   <p className="text-gray-600 leading-relaxed">
@@ -144,7 +144,7 @@ export default function Home() {
       >
         <div className="container mx-auto">
           <Card className="glass-card p-12 text-center max-w-4xl mx-auto">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">
+            <h3 className="text-3xl font-bold text-foreground mb-4">
               Pronto para começar?
             </h3>
             <p className="text-gray-600 mb-8 text-lg">

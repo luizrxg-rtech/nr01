@@ -102,7 +102,7 @@ export default function ControleRespostas() {
         animate={{opacity: 1, y: 0}}
         className="space-y-2"
       >
-        <h1 className="text-3xl font-bold text-gray-900">Controle de Respostas</h1>
+        <h1 className="text-3xl font-bold text-foreground">Controle de Respostas</h1>
         <p className="text-gray-600">
           Monitore quem respondeu os formulários e acompanhe o progresso em tempo real.
         </p>
@@ -120,7 +120,7 @@ export default function ControleRespostas() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total de Respostas</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalRespostas}</p>
+                <p className="text-2xl font-bold text-foreground">{stats.totalRespostas}</p>
               </div>
               <MessageSquare className="w-8 h-8 text-brand-blue"/>
             </div>
@@ -256,7 +256,7 @@ export default function ControleRespostas() {
                 >
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h4 className="font-semibold text-gray-900">{resposta.funcionarioNome}</h4>
+                      <h4 className="font-semibold text-foreground">{resposta.funcionarioNome}</h4>
                       <p className="text-sm text-gray-600">{resposta.funcionarioEmail}</p>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -314,7 +314,7 @@ export default function ControleRespostas() {
                   className="flex justify-between items-center p-3 rounded-lg hover:bg-white/30 transition-colors"
                 >
                   <div>
-                    <p className="font-medium text-gray-900">{funcionario.nome}</p>
+                    <p className="font-medium text-foreground">{funcionario.nome}</p>
                     <p className="text-sm text-gray-600">{funcionario.email}</p>
                   </div>
                   {getStatusBadge(funcionario.status)}

@@ -166,7 +166,7 @@ export default function CadastroEmpresa() {
           >
             <CheckCircle className="w-8 h-8 text-green-600" />
           </motion.div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-foreground mb-2">
             Sucesso!
           </h2>
           <p className="text-gray-600">
@@ -188,7 +188,7 @@ export default function CadastroEmpresa() {
         className="flex justify-between items-start"
       >
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-foreground">
             {empresa ? 'Dados da Empresa' : 'Cadastro de Empresa'}
           </h1>
           <p className="text-gray-600">

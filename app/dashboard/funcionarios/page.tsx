@@ -124,7 +124,7 @@ export default function GerenciarFuncionarios() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <h1 className="text-3xl font-bold text-gray-900">Gerenciar Funcionários</h1>
+        <h1 className="text-3xl font-bold text-foreground">Gerenciar Funcionários</h1>
         <p className="text-gray-600">
           Importe dados de funcionários via planilha ou gerencie individualmente.
         </p>
@@ -235,7 +235,7 @@ export default function GerenciarFuncionarios() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total de Funcionários</p>
-                <p className="text-2xl font-bold text-gray-900">{funcionarios.length}</p>
+                <p className="text-2xl font-bold text-foreground">{funcionarios.length}</p>
               </div>
               <Users className="w-8 h-8 text-brand-blue" />
             </div>
@@ -289,12 +289,12 @@ export default function GerenciarFuncionarios() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Nome</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Cargo</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">CPF</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Email</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Ações</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Nome</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Cargo</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">CPF</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Email</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -306,7 +306,7 @@ export default function GerenciarFuncionarios() {
                       transition={{ delay: 0.1 * index }}
                       className="border-b border-gray-100 hover:bg-white/30 transition-colors"
                     >
-                      <td className="py-3 px-4 font-medium text-gray-900">
+                      <td className="py-3 px-4 font-medium text-foreground">
                         {funcionario.nome}
                       </td>
                       <td className="py-3 px-4 text-gray-600">

@@ -123,7 +123,7 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-2"
       >
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
         <p className="text-gray-600">
           Bem-vindo ao sistema de controle de formulários. Aqui você encontra um resumo de todas as atividades.
         </p>
@@ -143,7 +143,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                     <div className="flex items-center mt-2 text-sm text-green-600">
                       <TrendingUp className="w-4 h-4 mr-1" />
                       {stat.trend}
@@ -167,7 +167,7 @@ export default function Dashboard() {
       >
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-900">
+            <CardTitle className="text-xl font-semibold text-foreground">
               Ações rápidas
             </CardTitle>
           </CardHeader>
@@ -189,7 +189,7 @@ export default function Dashboard() {
                       <action.icon className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
-                      <p className="font-medium text-gray-900">{action.title}</p>
+                      <p className="font-medium text-foreground">{action.title}</p>
                       <p className="text-xs text-gray-600">{action.description}</p>
                     </div>
                   </Button>
@@ -208,7 +208,7 @@ export default function Dashboard() {
       >
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="text-xl font-semibold text-gray-900">
+            <CardTitle className="text-xl font-semibold text-foreground">
               Atividade recente
             </CardTitle>
           </CardHeader>
@@ -236,7 +236,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900">{activity.action}</p>
+                    <p className="font-medium text-foreground">{activity.action}</p>
                     <p className="text-sm text-gray-600">{activity.details}</p>
                     <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
                   </div>

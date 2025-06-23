@@ -95,3 +95,16 @@
     @apply bg-gradient-to-br from-white/25 to-white/10 backdrop-blur-md;
   }
 }
+
+::-webkit-scrollbar {
+  display: none;
+}
+
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}

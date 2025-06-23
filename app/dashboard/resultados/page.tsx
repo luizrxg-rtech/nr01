@@ -172,7 +172,7 @@ export default function DashboardResultados() {
         className="flex justify-between items-start"
       >
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard de Resultados</h1>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard de Resultados</h1>
           <p className="text-gray-600">
             Analise os resultados dos formulários com gráficos e métricas detalhadas.
           </p>
@@ -206,7 +206,7 @@ export default function DashboardResultados() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total de Respostas</p>
-                <p className="text-2xl font-bold text-gray-900">{formularioAtual.respostas}</p>
+                <p className="text-2xl font-bold text-foreground">{formularioAtual.respostas}</p>
               </div>
               <Users className="w-8 h-8 text-brand-blue" />
             </div>
@@ -254,7 +254,7 @@ export default function DashboardResultados() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total de Perguntas</p>
-                <p className="text-2xl font-bold text-gray-900">{formularioAtual.perguntas.length}</p>
+                <p className="text-2xl font-bold text-foreground">{formularioAtual.perguntas.length}</p>
               </div>
               <BarChart3 className="w-8 h-8 text-purple-600" />
             </div>
@@ -448,10 +448,10 @@ export default function DashboardResultados() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Pergunta</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Média</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">Distribuição</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Pergunta</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Média</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Distribuição</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -463,7 +463,7 @@ export default function DashboardResultados() {
                       transition={{ delay: 0.1 * index }}
                       className="border-b border-gray-100 hover:bg-white/30 transition-colors"
                     >
-                      <td className="py-3 px-4 text-gray-900 max-w-xs">
+                      <td className="py-3 px-4 text-foreground max-w-xs">
                         {pergunta.pergunta}
                       </td>
                       <td className="py-3 px-4">

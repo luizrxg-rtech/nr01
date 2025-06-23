@@ -104,7 +104,7 @@ export default function Sidebar({ children }: SidebarProps) {
             <div className="w-6 h-6 brand-gradient rounded flex items-center justify-center">
               <FileText className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-gray-900">Gramed</span>
+            <span className="font-semibold text-foreground">Gramed</span>
           </div>
         </div>
 
@@ -155,7 +155,7 @@ function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () 
                 'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group',
                 isActive
                   ? 'bg-gradient-to-r from-brand-green to-brand-blue text-white shadow-lg'
-                  : 'text-gray-700 hover:bg-white/50 hover:text-gray-900'
+                  : 'text-gray-700 hover:bg-white/50 hover:text-foreground'
               )}
             >
               <item.icon className={cn(

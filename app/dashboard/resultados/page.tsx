@@ -274,16 +274,16 @@ export default function DashboardResultados() {
                   height={100}
                 />
                 <YAxis domain={[0, 5]} />
-                <Tooltip
-                  formatter={(value, name, props) => [
-                    `${Number(value).toFixed(1)}`,
-                    'Média'
-                  ]}
-                  labelFormatter={(label, payload) => {
-                    const item = payload?.[0]?.payload;
-                    return item?.perguntaCompleta || label;
-                  }}
-                />
+                {/*<Tooltip*/}
+                {/*  formatter={(value, name, props) => [*/}
+                {/*    `${Number(value).toFixed(1)}`,*/}
+                {/*    'Média'*/}
+                {/*  ]}*/}
+                {/*  labelFormatter={(label, payload) => {*/}
+                {/*    const item = payload?.[0]?.payload;*/}
+                {/*    return item?.perguntaCompleta || label;*/}
+                {/*  }}*/}
+                {/*/>*/}
                 <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -388,45 +388,45 @@ export default function DashboardResultados() {
         </motion.div>
 
         {/* Radar Chart - Visão Geral */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0 }}
-          className="h-full"
-        >
-          <Card className="card h-full">
-            <CardHeader>
-              <CardTitle>Análise Radar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <RadarChart data={radarData}>
-                  <PolarGrid />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
-                  <PolarRadiusAxis domain={[0, 5]} tick={false} />
-                  <Radar
-                    name="Pontuação"
-                    dataKey="value"
-                    stroke="#337AC7"
-                    fill="#337AC7"
-                    fillOpacity={0.3}
-                    strokeWidth={2}
-                  />
-                  <Tooltip
-                    formatter={(value, name, props) => [
-                      `${Number(value).toFixed(1)}`,
-                      'Pontuação'
-                    ]}
-                    labelFormatter={(label, payload) => {
-                      const item = payload?.[0]?.payload;
-                      return item?.fullText || label;
-                    }}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
+        {/*<motion.div*/}
+        {/*  initial={{ opacity: 0, y: 20 }}*/}
+        {/*  animate={{ opacity: 1, y: 0 }}*/}
+        {/*  transition={{ delay: 1.0 }}*/}
+        {/*  className="h-full"*/}
+        {/*>*/}
+        {/*  <Card className="card h-full">*/}
+        {/*    <CardHeader>*/}
+        {/*      <CardTitle>Análise Radar</CardTitle>*/}
+        {/*    </CardHeader>*/}
+        {/*    <CardContent>*/}
+        {/*      <ResponsiveContainer width="100%" height={400}>*/}
+        {/*        <RadarChart data={radarData}>*/}
+        {/*          <PolarGrid />*/}
+        {/*          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />*/}
+        {/*          <PolarRadiusAxis domain={[0, 5]} tick={false} />*/}
+        {/*          <Radar*/}
+        {/*            name="Pontuação"*/}
+        {/*            dataKey="value"*/}
+        {/*            stroke="#337AC7"*/}
+        {/*            fill="#337AC7"*/}
+        {/*            fillOpacity={0.3}*/}
+        {/*            strokeWidth={2}*/}
+        {/*          />*/}
+        {/*          <Tooltip*/}
+        {/*            formatter={(value, name, props) => [*/}
+        {/*              `${Number(value).toFixed(1)}`,*/}
+        {/*              'Pontuação'*/}
+        {/*            ]}*/}
+        {/*            labelFormatter={(label, payload) => {*/}
+        {/*              const item = payload?.[0]?.payload;*/}
+        {/*              return item?.fullText || label;*/}
+        {/*            }}*/}
+        {/*          />*/}
+        {/*        </RadarChart>*/}
+        {/*      </ResponsiveContainer>*/}
+        {/*    </CardContent>*/}
+        {/*  </Card>*/}
+        {/*</motion.div>*/}
       </div>
 
       {/* Detailed Results Table */}

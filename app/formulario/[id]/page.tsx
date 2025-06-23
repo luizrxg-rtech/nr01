@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { 
-  FileText, 
-  CheckCircle, 
-  ArrowLeft, 
+import {
+  FileText,
+  CheckCircle,
+  ArrowLeft,
   ArrowRight,
   Send
 } from 'lucide-react';
@@ -157,13 +157,13 @@ export default function ResponderFormulario({ params }: { params: { id: string }
             >
               <CheckCircle className="w-8 h-8 text-green-600" />
             </motion.div>
-            
+
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
               Obrigado pela sua participação!
             </h2>
-            
+
             <p className="text-gray-600 mb-6">
-              Suas respostas foram enviadas com sucesso. Elas são muito importantes 
+              Suas respostas foram enviadas com sucesso. Elas são muito importantes
               para nos ajudar a melhorar continuamente.
             </p>
 
@@ -179,13 +179,6 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                   <strong>Data:</strong> {new Date().toLocaleDateString('pt-BR')}
                 </p>
               </div>
-
-              <Button 
-                onClick={() => router.push('/')}
-                className="w-full brand-gradient hover:opacity-90 transition-opacity"
-              >
-                Finalizar
-              </Button>
             </div>
           </Card>
         </motion.div>
@@ -219,7 +212,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                   )}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Pergunta {currentQuestion + 1} de {totalQuestions}</span>
@@ -261,8 +254,8 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                     onClick={() => handleAnswerChange(option.value)}
                   >
                     <RadioGroupItem value={option.value} id={option.value} />
-                    <Label 
-                      htmlFor={option.value} 
+                    <Label
+                      htmlFor={option.value}
                       className={`flex-1 cursor-pointer font-medium ${option.color}`}
                     >
                       {option.label}

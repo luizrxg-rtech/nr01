@@ -74,7 +74,7 @@ export default function Sidebar({ children }: SidebarProps) {
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
-              className="fixed left-0 top-0 bottom-0 w-64 glass-card"
+              className="fixed left-0 top-0 bottom-0 w-64 card"
             >
               <SidebarContent pathname={pathname} onClose={() => setSidebarOpen(false)} />
             </motion.div>
@@ -84,7 +84,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="glass-card border-r border-white/20 flex flex-col flex-grow">
+        <div className="card border-r border-white/20 flex flex-col flex-grow">
           <SidebarContent pathname={pathname} />
         </div>
       </div>

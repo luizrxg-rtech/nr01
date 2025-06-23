@@ -197,7 +197,7 @@ export default function GerenciarFormularios() {
           transition={{delay: 0.2}}
           className="grid grid-cols-1 md:grid-cols-3 gap-6"
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -209,7 +209,7 @@ export default function GerenciarFormularios() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -225,7 +225,7 @@ export default function GerenciarFormularios() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="card">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -246,7 +246,7 @@ export default function GerenciarFormularios() {
           animate={{opacity: 1, y: 0}}
           transition={{delay: 0.4}}
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <CardTitle>Lista de Formulários</CardTitle>
             </CardHeader>
@@ -299,9 +299,9 @@ export default function GerenciarFormularios() {
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-gray-700">Perguntas:</p>
                           <ul className="text-sm text-gray-600 space-y-1">
-                            {formulario.perguntas.slice(0, 2).map((pergunta, idx) => (
+                            {formulario.perguntas.slice(0, 2).map((pergunta, index) => (
                               <li key={pergunta.id} className="flex items-start">
-                                <span className="mr-2">{idx + 1}.</span>
+                                <span className="mr-2">{index + 1}.</span>
                                 <span>{pergunta.texto}</span>
                               </li>
                             ))}

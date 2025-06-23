@@ -76,7 +76,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
   if (!formulario) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="glass-card p-8 text-center">
+        <Card className="card p-8 text-center">
           <h2 className="text-2xl font-bold text-foreground mb-4">
             Formulário não encontrado
           </h2>
@@ -148,7 +148,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full"
         >
-          <Card className="glass-card p-8 text-center">
+          <Card className="card p-8 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -195,7 +195,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <div className="flex items-center space-x-3 mb-4">
                 <div className="w-10 h-10 brand-gradient rounded-lg flex items-center justify-center">
@@ -232,7 +232,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3 }}
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <CardTitle className="text-lg text-foreground">
                 {currentPergunta.texto}
@@ -315,7 +315,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
           transition={{ delay: 0.5 }}
           className="mt-8"
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardContent className="p-4">
               <div className="flex flex-wrap gap-2">
                 {formulario.perguntas.map((pergunta, index) => (

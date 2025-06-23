@@ -136,7 +136,7 @@ export default function GerenciarFuncionarios() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Upload className="w-5 h-5 text-brand-blue" />
@@ -230,7 +230,7 @@ export default function GerenciarFuncionarios() {
         transition={{ delay: 0.4 }}
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -242,7 +242,7 @@ export default function GerenciarFuncionarios() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -256,7 +256,7 @@ export default function GerenciarFuncionarios() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -277,7 +277,7 @@ export default function GerenciarFuncionarios() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <FileSpreadsheet className="w-5 h-5 text-brand-green" />

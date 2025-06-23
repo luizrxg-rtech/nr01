@@ -115,7 +115,7 @@ export default function ControleRespostas() {
         transition={{delay: 0.2}}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -127,7 +127,7 @@ export default function ControleRespostas() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -139,7 +139,7 @@ export default function ControleRespostas() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -151,7 +151,7 @@ export default function ControleRespostas() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -172,7 +172,7 @@ export default function ControleRespostas() {
         animate={{opacity: 1, y: 0}}
         transition={{delay: 0.4}}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Filter className="w-5 h-5"/>
@@ -240,7 +240,7 @@ export default function ControleRespostas() {
         className="grid grid-cols-1 lg:grid-cols-2 gap-8"
       >
         {/* Respostas Recebidas */}
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle>Respostas Recebidas</CardTitle>
           </CardHeader>
@@ -279,8 +279,8 @@ export default function ControleRespostas() {
                   <div className="text-sm text-gray-600">
                     <p className="font-medium mb-1">Resumo das Respostas:</p>
                     <div className="space-y-1">
-                      {resposta.respostas.slice(0, 2).map((r, idx) => (
-                        <div key={idx} className="flex justify-between">
+                      {resposta.respostas.slice(0, 2).map((r, index) => (
+                        <div key={index} className="flex justify-between">
                           <span className="truncate mr-2">{r.pergunta}</span>
                           <span className="font-medium">{getRespostaLabel(r.resposta)}</span>
                         </div>
@@ -299,7 +299,7 @@ export default function ControleRespostas() {
         </Card>
 
         {/* Status dos Funcionários */}
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle>Status dos Funcionários</CardTitle>
           </CardHeader>

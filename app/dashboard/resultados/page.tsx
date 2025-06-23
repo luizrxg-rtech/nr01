@@ -75,17 +75,6 @@ export default function DashboardResultados() {
             { valor: 4, quantidade: 15 },
             { valor: 5, quantidade: 10 }
           ]
-        },
-        {
-          pergunta: 'A comunicação da equipe é eficiente?',
-          media: 3.4,
-          distribuicao: [
-            { valor: 1, quantidade: 4 },
-            { valor: 2, quantidade: 7 },
-            { valor: 3, quantidade: 14 },
-            { valor: 4, quantidade: 12 },
-            { valor: 5, quantidade: 8 }
-          ]
         }
       ]
     },
@@ -201,7 +190,7 @@ export default function DashboardResultados() {
         transition={{ delay: 0.2 }}
         className="grid grid-cols-1 md:grid-cols-4 gap-6"
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -213,7 +202,7 @@ export default function DashboardResultados() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -235,7 +224,7 @@ export default function DashboardResultados() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -249,7 +238,7 @@ export default function DashboardResultados() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -262,47 +251,85 @@ export default function DashboardResultados() {
         </Card>
       </motion.div>
 
+      {/* Bar Chart - Média por Pergunta */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle>Média por Pergunta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={500}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="pergunta"
+                  tick={{ fontSize: 12 }}
+                  interval={0}
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                />
+                <YAxis domain={[0, 5]} />
+                <Tooltip
+                  formatter={(value, name, props) => [
+                    `${Number(value).toFixed(1)}`,
+                    'Média'
+                  ]}
+                  labelFormatter={(label, payload) => {
+                    const item = payload?.[0]?.payload;
+                    return item?.perguntaCompleta || label;
+                  }}
+                />
+                <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Line Chart - Tendência */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle>Tendência ao Longo do Tempo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={500}>
+              <LineChart data={tendenciaData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="mes" />
+                <YAxis domain={[0, 5]} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="satisfacao"
+                  stroke="#73C24F"
+                  strokeWidth={3}
+                  name="Satisfação"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="treinamento"
+                  stroke="#337AC7"
+                  strokeWidth={3}
+                  name="Treinamento"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Bar Chart - Média por Pergunta */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Média por Pergunta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="pergunta" 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                  />
-                  <YAxis domain={[0, 5]} />
-                  {/*<Tooltip */}
-                  {/*  formatter={(value, name, props) => [*/}
-                  {/*    `${Number(value).toFixed(1)}`,*/}
-                  {/*    'Média'*/}
-                  {/*  ]}*/}
-                  {/*  labelFormatter={(label, payload) => {*/}
-                  {/*    const item = payload?.[0]?.payload;*/}
-                  {/*    return item?.perguntaCompleta || label;*/}
-                  {/*  }}*/}
-                  {/*/>*/}
-                  <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
 
         {/* Pie Chart - Distribuição de Respostas */}
         <motion.div
@@ -310,7 +337,7 @@ export default function DashboardResultados() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
         >
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <CardTitle>Distribuição de Respostas</CardTitle>
               <p className="text-sm text-gray-600">
@@ -347,47 +374,15 @@ export default function DashboardResultados() {
                       />
                       <span>{item.name}</span>
                     </div>
-                    <span className="font-medium">{item.value} ({item.percentage}%)</span>
+                    <span
+                      style={{ color: COLORS[index] }}
+                      className="font-medium"
+                    >
+                      {item.value} ({item.percentage}%)
+                    </span>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Line Chart - Tendência */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-        >
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={tendenciaData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="mes" />
-                  <YAxis domain={[0, 5]} />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="satisfacao" 
-                    stroke="#73C24F" 
-                    strokeWidth={3}
-                    name="Satisfação"
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="treinamento" 
-                    stroke="#337AC7" 
-                    strokeWidth={3}
-                    name="Treinamento"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
             </CardContent>
           </Card>
         </motion.div>
@@ -397,13 +392,14 @@ export default function DashboardResultados() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0 }}
+          className="h-full"
         >
-          <Card className="glass-card">
+          <Card className="card h-full">
             <CardHeader>
               <CardTitle>Análise Radar</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={400}>
                 <RadarChart data={radarData}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />
@@ -416,16 +412,16 @@ export default function DashboardResultados() {
                     fillOpacity={0.3}
                     strokeWidth={2}
                   />
-                  {/*<Tooltip */}
-                  {/*  formatter={(value, name, props) => [*/}
-                  {/*    `${Number(value).toFixed(1)}`,*/}
-                  {/*    'Pontuação'*/}
-                  {/*  ]}*/}
-                  {/*  labelFormatter={(label, payload) => {*/}
-                  {/*    const item = payload?.[0]?.payload;*/}
-                  {/*    return item?.fullText || label;*/}
-                  {/*  }}*/}
-                  {/*/>*/}
+                  <Tooltip
+                    formatter={(value, name, props) => [
+                      `${Number(value).toFixed(1)}`,
+                      'Pontuação'
+                    ]}
+                    labelFormatter={(label, payload) => {
+                      const item = payload?.[0]?.payload;
+                      return item?.fullText || label;
+                    }}
+                  />
                 </RadarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -439,7 +435,7 @@ export default function DashboardResultados() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.2 }}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle>Resultados Detalhados</CardTitle>
           </CardHeader>
@@ -481,11 +477,11 @@ export default function DashboardResultados() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-1">
-                          {pergunta.distribuicao.map((dist, idx) => (
+                          {pergunta.distribuicao.map((dist, index) => (
                             <div
-                              key={idx}
+                              key={index}
                               className="w-8 h-6 rounded text-xs flex items-center justify-center text-white font-medium"
-                              style={{ backgroundColor: COLORS[idx] }}
+                              style={{ backgroundColor: COLORS[index] }}
                             >
                               {dist.quantidade}
                             </div>

@@ -83,8 +83,8 @@
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+  .card {
+    @apply bg-white border border-white/20;
   }
   
   .brand-gradient {

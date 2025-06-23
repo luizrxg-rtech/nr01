@@ -64,7 +64,7 @@ export default function AuthPage() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader className="text-center">
             <div className="w-12 h-12 brand-gradient rounded-lg flex items-center justify-center mx-auto mb-4">
               <FileText className="w-6 h-6 text-white" />

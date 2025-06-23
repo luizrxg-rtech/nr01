@@ -138,7 +138,7 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 * index }}
           >
-            <Card className="glass-card hover:shadow-xl transition-all duration-300">
+            <Card className="card hover:shadow-xl transition-all duration-300">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -165,7 +165,7 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-foreground">
               Ações rápidas
@@ -206,7 +206,7 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.7 }}
       >
-        <Card className="glass-card">
+        <Card className="card">
           <CardHeader>
             <CardTitle className="text-xl font-semibold text-foreground">
               Atividade recente

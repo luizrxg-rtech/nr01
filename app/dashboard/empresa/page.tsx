@@ -157,7 +157,7 @@ export default function CadastroEmpresa() {
         animate={{ opacity: 1, scale: 1 }}
         className="flex items-center justify-center min-h-[60vh]"
       >
-        <Card className="glass-card p-8 text-center max-w-md mx-auto">
+        <Card className="card p-8 text-center max-w-md mx-auto">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -217,7 +217,7 @@ export default function CadastroEmpresa() {
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Seção Empresa */}
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Building2 className="w-5 h-5 text-brand-blue" />
@@ -359,7 +359,7 @@ export default function CadastroEmpresa() {
           </Card>
 
           {/* Seção Técnico Responsável */}
-          <Card className="glass-card">
+          <Card className="card">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <User className="w-5 h-5 text-brand-green" />

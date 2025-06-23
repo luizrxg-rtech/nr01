@@ -118,7 +118,7 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
               >
-                <Card className="glass-card p-6 hover:shadow-2xl transition-all duration-300 group">
+                <Card className="card p-6 hover:shadow-2xl transition-all duration-300 group">
                   <div className="w-12 h-12 brand-gradient rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
@@ -143,7 +143,7 @@ export default function Home() {
         className="py-20 px-4"
       >
         <div className="container mx-auto">
-          <Card className="glass-card p-12 text-center max-w-4xl mx-auto">
+          <Card className="card p-12 text-center max-w-4xl mx-auto">
             <h3 className="text-3xl font-bold text-foreground mb-4">
               Pronto para começar?
             </h3>

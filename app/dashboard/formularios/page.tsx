@@ -20,20 +20,6 @@ import {
 } from 'lucide-react';
 import {toast} from 'sonner';
 
-interface Pergunta {
-  id: number;
-  texto: string;
-}
-
-interface Formulario {
-  id: number;
-  nome: string;
-  perguntas: Pergunta[];
-  status: 'ativo' | 'inativo';
-  respostas: number;
-  criadoEm: string;
-}
-
 export default function GerenciarFormularios() {
   const [formularios, setFormularios] = useState<Formulario[]>([
     {

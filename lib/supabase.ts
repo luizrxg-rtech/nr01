@@ -68,6 +68,7 @@ export interface Database {
           empresa_id: string;
           nome: string;
           cargo: string;
+          setor: string;
           cpf: string;
           email: string;
           status: 'ativo' | 'inativo';
@@ -79,6 +80,7 @@ export interface Database {
           empresa_id: string;
           nome: string;
           cargo: string;
+          setor: string;
           cpf: string;
           email: string;
           status?: 'ativo' | 'inativo';
@@ -90,6 +92,7 @@ export interface Database {
           empresa_id?: string;
           nome?: string;
           cargo?: string;
+          setor?: string;
           cpf?: string;
           email?: string;
           status?: 'ativo' | 'inativo';

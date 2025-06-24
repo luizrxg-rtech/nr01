@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
+import {LoadingProvider} from "@/contexts/LoadingContext";
 
 const jakarta = Plus_Jakarta_Sans({ 
   subsets: ['latin'],
@@ -23,8 +24,10 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={`${jakarta.variable} font-sans antialiased`}>
         <AuthProvider>
-          {children}
-          <Toaster />
+          <LoadingProvider>
+            {children}
+            <Toaster />
+          </LoadingProvider>
         </AuthProvider>
       </body>
     </html>

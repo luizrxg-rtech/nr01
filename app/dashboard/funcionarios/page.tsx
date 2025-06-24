@@ -19,15 +19,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Funcionario {
-  id: number;
-  nome: string;
-  cargo: string;
-  cpf: string;
-  email: string;
-  status: 'ativo' | 'inativo';
-}
-
 export default function GerenciarFuncionarios() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -45,30 +36,7 @@ export default function GerenciarFuncionarios() {
 
     // Mock data that would come from the spreadsheet
     const newFuncionarios: Funcionario[] = [
-      {
-        id: funcionarios.length + 1,
-        nome: 'Ana Oliveira',
-        cargo: 'Designer UX',
-        cpf: '321.654.987-00',
-        email: 'ana.oliveira@empresa.com',
-        status: 'ativo'
-      },
-      {
-        id: funcionarios.length + 2,
-        nome: 'Carlos Pereira',
-        cargo: 'Analista de Dados',
-        cpf: '654.321.789-00',
-        email: 'carlos.pereira@empresa.com',
-        status: 'ativo'
-      },
-      {
-        id: funcionarios.length + 3,
-        nome: 'Luciana Lima',
-        cargo: 'Product Manager',
-        cpf: '789.123.456-00',
-        email: 'luciana.lima@empresa.com',
-        status: 'ativo'
-      }
+
     ];
 
     setFuncionarios(prev => [...prev, ...newFuncionarios]);
@@ -311,6 +279,9 @@ export default function GerenciarFuncionarios() {
                       </td>
                       <td className="py-3 px-4 text-gray-600">
                         {funcionario.cargo}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {funcionario.setor}
                       </td>
                       <td className="py-3 px-4 text-gray-600">
                         {funcionario.cpf}

@@ -16,25 +16,12 @@ import {
   Send
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {Formulario} from "@/lib/supabase";
 
-interface Pergunta {
-  id: number;
-  texto: string;
-}
-
-interface Formulario {
-  id: string;
-  nome: string;
-  perguntas: Pergunta[];
-  descricao?: string;
-}
-
-// Mock data - in a real app, this would come from an API
-const formularios: Record<string, Formulario> = {
-  '1': {
+const formularios = [
+  {
     id: '1',
     nome: 'Pesquisa de Satisfação - Q1 2024',
-    descricao: 'Avalie sua experiência no ambiente de trabalho e ajude-nos a melhorar continuamente.',
     perguntas: [
       { id: 1, texto: 'Como você avalia o ambiente de trabalho da empresa?' },
       { id: 2, texto: 'Você se sente motivado em suas tarefas diárias?' },
@@ -43,10 +30,9 @@ const formularios: Record<string, Formulario> = {
       { id: 5, texto: 'As oportunidades de crescimento profissional são claras?' }
     ]
   },
-  '2': {
+  {
     id: '2',
     nome: 'Avaliação de Treinamento',
-    descricao: 'Compartilhe sua opinião sobre o treinamento recém-concluído.',
     perguntas: [
       { id: 1, texto: 'O conteúdo do treinamento foi relevante para suas atividades?' },
       { id: 2, texto: 'O instrutor demonstrou domínio do assunto?' },
@@ -54,7 +40,7 @@ const formularios: Record<string, Formulario> = {
       { id: 4, texto: 'Você aplicaria os conhecimentos adquiridos no trabalho?' }
     ]
   }
-};
+];
 
 const respostaOptions = [
   { value: '1', label: '1 - Nunca', color: 'text-red-600' },
@@ -205,11 +191,6 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                   <CardTitle className="text-xl text-foreground">
                     {formulario.nome}
                   </CardTitle>
-                  {formulario.descricao && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {formulario.descricao}
-                    </p>
-                  )}
                 </div>
               </div>
 

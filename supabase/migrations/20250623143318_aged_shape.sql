@@ -23,6 +23,7 @@
       - `empresa_id` (uuid, foreign key)
       - `nome` (text)
       - `cargo` (text)
+      - `setor` (text)
       - `cpf` (text)
       - `email` (text)
       - `status` (text, default 'ativo')
@@ -82,6 +83,7 @@ CREATE TABLE IF NOT EXISTS funcionarios (
   empresa_id uuid REFERENCES empresas(id) ON DELETE CASCADE NOT NULL,
   nome text NOT NULL,
   cargo text NOT NULL,
+  setor text NOT NULL,
   cpf text NOT NULL,
   email text NOT NULL,
   status text DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo')),

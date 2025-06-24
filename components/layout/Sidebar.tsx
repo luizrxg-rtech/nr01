@@ -1,21 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import {useState} from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { 
-  Building2, 
-  Users, 
-  FileText, 
-  MessageSquare, 
-  BarChart3, 
-  Menu, 
-  X,
-  Home
-} from 'lucide-react';
+import {usePathname} from 'next/navigation';
+import {AnimatePresence, motion} from 'framer-motion';
+import {cn} from '@/lib/utils';
+import {Button} from '@/components/ui/button';
+import {BarChart3, Building2, FileText, Home, Menu, MessageSquare, Users, X} from 'lucide-react';
+import LoadingScreen from "@/components/layout/LoadingScreen";
+import {useLoading} from "@/contexts/LoadingContext";
 
 const navigation = [
   {
@@ -56,6 +49,8 @@ interface SidebarProps {
 
 export default function Sidebar({ children }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { loading } = useLoading();
   const pathname = usePathname();
 
   return (
@@ -110,7 +105,7 @@ export default function Sidebar({ children }: SidebarProps) {
 
         {/* Page content */}
         <main className="p-4 lg:p-8">
-          {children}
+          {loading ? <LoadingScreen /> : children}
         </main>
       </div>
     </div>

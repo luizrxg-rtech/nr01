@@ -17,24 +17,7 @@ import {
   Download,
   Eye
 } from 'lucide-react';
-import {Formulario} from "@/lib/supabase";
-
-interface Resposta {
-  id: number;
-  funcionarioNome: string;
-  funcionarioEmail: string;
-  formularioNome: string;
-  respostas: { pergunta: string; resposta: number; }[];
-  status: 'completa' | 'parcial';
-  dataResposta: string;
-}
-
-interface Funcionario {
-  id: number;
-  nome: string;
-  email: string;
-  status: 'respondeu' | 'nao_respondeu' | 'parcial';
-}
+import {Formulario, Funcionario, Resposta} from "@/lib/supabase";
 
 export default function ControleRespostas() {
   const [filtroFormulario, setFiltroFormulario] = useState('todos');

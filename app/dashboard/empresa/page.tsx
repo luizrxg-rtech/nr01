@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Building2, User, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { empresaService } from '@/lib/database';
+import { empresaService } from '@/services/empresa';
 import type { Empresa } from '@/lib/supabase';
 
 const empresaSchema = z.object({
@@ -36,7 +36,7 @@ export default function CadastroEmpresa() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const { user } = useAuth();
+  const { user, setEmpresaId } = useAuth();
 
   const {
     register,
@@ -61,7 +61,6 @@ export default function CadastroEmpresa() {
       const empresaData = await empresaService.getByUserId(user.id);
       if (empresaData) {
         setEmpresa(empresaData);
-        // Preencher formulário com dados existentes
         setValue('razaoSocial', empresaData.razao_social);
         setValue('cnpj', empresaData.cnpj);
         setValue('nomeFantasia', empresaData.nome_fantasia);
@@ -73,6 +72,7 @@ export default function CadastroEmpresa() {
         setValue('nomeTecnico', empresaData.nome_tecnico);
         setValue('cpfTecnico', empresaData.cpf_tecnico);
         setValue('mte', empresaData.mte);
+        setEmpresaId(empresaData.id)
       }
     } catch (error: any) {
       toast.error('Erro ao carregar dados da empresa');

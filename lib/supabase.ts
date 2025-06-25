@@ -3,7 +3,48 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = "https://wmjzlvchlvfvhlvzggpo.supabase.co";
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtanpsdmNobHZmdmhsdnpnZ3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2OTEzMzMsImV4cCI6MjA2NjI2NzMzM30.eROeV0l-SziEVyTlZ821t1c8rhCbT1fjCFyHp20PDK4";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+});
+
+// Test connection function
+export const testSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('id')
+      .limit(1);
+    
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+      return false;
+    }
+    
+    console.log('Supabase connection test successful');
+    return true;
+  } catch (error) {
+    console.error('Supabase connection test error:', error);
+    return false;
+  }
+};
 
 // Tipos TypeScript para o banco de dados
 export interface Database {

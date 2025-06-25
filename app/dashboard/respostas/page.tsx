@@ -15,7 +15,9 @@ import {
   Search,
   Filter,
   Download,
-  Eye
+  Eye,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import {toast} from 'sonner';
 import {useAuth} from '@/contexts/AuthContext';
@@ -24,6 +26,7 @@ import {formularioService} from '@/services/formulario';
 import {funcionarioService} from '@/services/funcionario';
 import {respostaService} from '@/services/resposta';
 import {perguntaService} from '@/services/pergunta';
+import {testSupabaseConnection} from '@/lib/supabase';
 import type {Formulario, Funcionario, Resposta, Pergunta} from '@/lib/supabase';
 
 interface RespostaCompleta {
@@ -57,41 +60,78 @@ export default function ControleRespostas() {
   const [funcionariosStatus, setFuncionariosStatus] = useState<FuncionarioStatus[]>([]);
   const [formularioSelecionado, setFormularioSelecionado] = useState<string>('todos');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const {user, empresaId} = useAuth();
   const {setLoading} = useLoading();
 
-  // Load initial data
+  // Test connection on mount
   useEffect(() => {
-    if (!user || !empresaId) return;
-
-    const loadInitialData = async () => {
-      setIsInitialLoading(true);
-      setLoading(true);
-
-      try {
-        const [formulariosData, funcionariosData] = await Promise.all([
-          formularioService.getByEmpresaId(empresaId),
-          funcionarioService.getByEmpresaId(empresaId)
-        ]);
-
-        setFormularios(formulariosData || []);
-        setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
-      } catch (error: any) {
-        toast.error('Erro ao carregar dados');
-        console.error(error);
-      } finally {
-        setIsInitialLoading(false);
-        setLoading(false);
+    const checkConnection = async () => {
+      const isConnected = await testSupabaseConnection();
+      if (!isConnected) {
+        setConnectionError('Não foi possível conectar ao servidor. Verifique sua conexão com a internet.');
+      } else {
+        setConnectionError(null);
       }
     };
 
-    loadInitialData();
+    checkConnection();
+  }, []);
+
+  // Load initial data with retry logic
+  const loadInitialData = useCallback(async (isRetry = false) => {
+    if (!user || !empresaId) return;
+
+    if (!isRetry) {
+      setIsInitialLoading(true);
+    }
+    setLoading(true);
+    setConnectionError(null);
+
+    try {
+      console.log('Loading initial data for empresa:', empresaId);
+      
+      const [formulariosData, funcionariosData] = await Promise.all([
+        formularioService.getByEmpresaId(empresaId),
+        funcionarioService.getByEmpresaId(empresaId)
+      ]);
+
+      console.log('Data loaded successfully:', {
+        formularios: formulariosData?.length || 0,
+        funcionarios: funcionariosData?.length || 0
+      });
+
+      setFormularios(formulariosData || []);
+      setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
+      setRetryCount(0);
+      
+      if (isRetry) {
+        toast.success('Dados carregados com sucesso!');
+      }
+    } catch (error: any) {
+      console.error('Error loading initial data:', error);
+      
+      const errorMessage = error.message || 'Erro ao carregar dados';
+      setConnectionError(errorMessage);
+      
+      if (!isRetry) {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsInitialLoading(false);
+      setLoading(false);
+    }
   }, [user, empresaId, setLoading]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   // Load responses when form is selected
   useEffect(() => {
-    if (formularioSelecionado === 'todos' || isInitialLoading) {
+    if (formularioSelecionado === 'todos' || isInitialLoading || connectionError) {
       setRespostas([]);
       setFuncionariosStatus([]);
       return;
@@ -142,7 +182,8 @@ export default function ControleRespostas() {
         setFuncionariosStatus(funcionariosComStatus);
 
       } catch (error: any) {
-        toast.error('Erro ao carregar respostas');
+        const errorMessage = error.message || 'Erro ao carregar respostas';
+        toast.error(errorMessage);
         console.error(error);
       } finally {
         setLoading(false);
@@ -150,7 +191,12 @@ export default function ControleRespostas() {
     };
 
     loadRespostasFormulario();
-  }, [formularioSelecionado, formularios, funcionarios, setLoading, isInitialLoading]);
+  }, [formularioSelecionado, formularios, funcionarios, setLoading, isInitialLoading, connectionError]);
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    loadInitialData(true);
+  };
 
   const filteredRespostas = respostas.filter(resposta => {
     const matchesStatus = filtroStatus === 'todos' || 
@@ -204,6 +250,40 @@ export default function ControleRespostas() {
     toast.success('Funcionalidade de exportação será implementada em breve');
   };
 
+  // Show connection error state
+  if (connectionError && isInitialLoading) {
+    return (
+      <div className="space-y-8">
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          className="space-y-2"
+        >
+          <h1 className="text-3xl font-bold text-foreground">Controle de Respostas</h1>
+          <p className="text-gray-600">
+            Monitore quem respondeu os formulários e acompanhe o progresso em tempo real.
+          </p>
+        </motion.div>
+
+        <Card className="card">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4"/>
+            <h3 className="text-xl font-semibold text-foreground mb-2">
+              Erro de Conexão
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {connectionError}
+            </p>
+            <Button onClick={handleRetry} className="flex items-center space-x-2">
+              <RefreshCw className="w-4 h-4"/>
+              <span>Tentar Novamente</span>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -216,6 +296,15 @@ export default function ControleRespostas() {
         <p className="text-gray-600">
           Monitore quem respondeu os formulários e acompanhe o progresso em tempo real.
         </p>
+        {connectionError && (
+          <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
+            <AlertCircle className="w-4 h-4"/>
+            <span className="text-sm">{connectionError}</span>
+            <Button variant="ghost" size="sm" onClick={handleRetry}>
+              <RefreshCw className="w-4 h-4"/>
+            </Button>
+          </div>
+        )}
       </motion.div>
 
       {/* Stats */}

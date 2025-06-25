@@ -19,112 +19,45 @@ import {
   MessageSquare
 } from 'lucide-react';
 import {toast} from 'sonner';
+import { Formulario } from '@/lib/supabase';
 
 export default function GerenciarFormularios() {
-  const [formularios, setFormularios] = useState<Formulario[]>([
-    {
-      id: 1,
-      nome: 'Pesquisa de Satisfação - Q1 2024',
-      perguntas: [
-        {id: 1, texto: 'Como você avalia o ambiente de trabalho?'},
-        {id: 2, texto: 'Você se sente motivado em suas tarefas diárias?'},
-        {id: 3, texto: 'A comunicação da equipe é eficiente?'}
-      ],
-      status: 'ativo',
-      respostas: 45,
-      criadoEm: '2024-01-15'
-    },
-    {
-      id: 2,
-      nome: 'Avaliação de Treinamento',
-      perguntas: [
-        {id: 1, texto: 'O conteúdo do treinamento foi relevante?'},
-        {id: 2, texto: 'O instrutor demonstrou domínio do assunto?'}
-      ],
-      status: 'inativo',
-      respostas: 23,
-      criadoEm: '2024-01-10'
-    }
-  ]);
+  const [formularios, setFormularios] = useState<Formulario[]>([]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingForm, setEditingForm] = useState<Formulario | null>(null);
-  const [formData, setFormData] = useState({
-    nome: '',
-    perguntas: [{id: 1, texto: ''}]
-  });
+  const [formulario, setFormulario] = useState<Formulario | null>(null);
 
   const handleCreateForm = () => {
     setShowForm(true);
     setEditingForm(null);
-    setFormData({
-      nome: '',
-      perguntas: [{id: 1, texto: ''}]
-    });
+    setFormulario({
+      id: string;
+      empresa_id: string;
+      nome: string;
+      status: 'ativo' | 'inativo'
+    })
   };
 
-  const handleEditForm = (formulario: Formulario) => {
+  const handleEditForm = () => {
     setShowForm(true);
     setEditingForm(formulario);
-    setFormData({
-      nome: formulario.nome,
-      perguntas: formulario.perguntas
-    });
+
   };
 
   const handleAddPergunta = () => {
-    const newId = Math.max(...formData.perguntas.map(p => p.id)) + 1;
-    setFormData(prev => ({
-      ...prev,
-      perguntas: [...prev.perguntas, {id: newId, texto: ''}]
-    }));
+
   };
 
   const handleRemovePergunta = (id: number) => {
-    if (formData.perguntas.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        perguntas: prev.perguntas.filter(p => p.id !== id)
-      }));
-    }
+
   };
 
   const handleUpdatePergunta = (id: number, texto: string) => {
-    setFormData(prev => ({
-      ...prev,
-      perguntas: prev.perguntas.map(p =>
-        p.id === id ? {...p, texto} : p
-      )
-    }));
+
   };
 
   const handleSaveForm = () => {
-    if (!formData.nome.trim() || formData.perguntas.some(p => !p.texto.trim())) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    if (editingForm) {
-      // Update existing form
-      setFormularios(prev => prev.map(f =>
-        f.id === editingForm.id
-          ? {...f, nome: formData.nome, perguntas: formData.perguntas}
-          : f
-      ));
-      toast.success('Formulário atualizado com sucesso!');
-    } else {
-      // Create new form
-      const newForm: Formulario = {
-        id: Math.max(...formularios.map(f => f.id)) + 1,
-        nome: formData.nome,
-        perguntas: formData.perguntas,
-        status: 'ativo',
-        respostas: 0,
-        criadoEm: new Date().toISOString().split('T')[0]
-      };
-      setFormularios(prev => [...prev, newForm]);
-      toast.success('Formulário criado com sucesso!');
-    }
 
     setShowForm(false);
     setEditingForm(null);

@@ -2,22 +2,24 @@
 
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Upload, 
-  FileSpreadsheet, 
-  Users, 
-  Download, 
-  CheckCircle, 
+import {
+  Upload,
+  FileSpreadsheet,
+  Users,
+  Download,
+  CheckCircle,
   AlertCircle,
   Trash2,
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {Funcionario} from "@/lib/supabase";
 
 export default function GerenciarFuncionarios() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
@@ -54,30 +56,38 @@ export default function GerenciarFuncionarios() {
   };
 
   const handleDownloadTemplate = () => {
-    // Create CSV template
-    const csvContent = "Nome,Cargo,CPF,Email\n" +
-      "João Silva,Analista,123.456.789-00,joao@empresa.com\n" +
-      "Maria Santos,Gerente,987.654.321-00,maria@empresa.com";
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const data = [
+      ["Nome", "Cargo", "CPF", "Email"],
+      ["João Silva", "Analista", "123.456.789-00", "joao@empresa.com"],
+      ["Maria Santos", "Gerente", "987.654.321-00", "maria@empresa.com"]
+    ];
+
+    const sheetContent = data.map(row =>
+      row.map(cell => `"${cell}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([sheetContent], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'template_funcionarios.csv';
+    link.download = 'template_funcionarios.xlsx';
     link.click();
     window.URL.revokeObjectURL(url);
-    
+
     toast.success('Template baixado com sucesso!');
   };
 
-  const handleDeleteFuncionario = (id: number) => {
+  const handleDeleteFuncionario = (id: string) => {
     setFuncionarios(prev => prev.filter(f => f.id !== id));
     toast.success('Funcionário removido com sucesso!');
   };
 
-  const handleToggleStatus = (id: number) => {
-    setFuncionarios(prev => prev.map(f => 
-      f.id === id 
+  const handleToggleStatus = (id: string) => {
+    setFuncionarios(prev => prev.map(f =>
+      f.id === id
         ? { ...f, status: f.status === 'ativo' ? 'inativo' : 'ativo' }
         : f
     ));
@@ -170,6 +180,7 @@ export default function GerenciarFuncionarios() {
                       <ul className="space-y-1 text-xs">
                         <li>• Nome: Nome completo do funcionário</li>
                         <li>• Cargo: Cargo ou função</li>
+                        <li>• Setor: Setor do qual o funcionário faz parte</li>
                         <li>• CPF: Documento com pontuação</li>
                         <li>• Email: Email corporativo</li>
                       </ul>
@@ -256,77 +267,77 @@ export default function GerenciarFuncionarios() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Nome</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Cargo</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">CPF</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Email</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Ações</th>
-                  </tr>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 font-medium text-foreground">Nome</th>
+                  <th className="text-left py-3 px-4 font-medium text-foreground">Cargo</th>
+                  <th className="text-left py-3 px-4 font-medium text-foreground">CPF</th>
+                  <th className="text-left py-3 px-4 font-medium text-foreground">Email</th>
+                  <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-foreground">Ações</th>
+                </tr>
                 </thead>
                 <tbody>
-                  {funcionarios.map((funcionario, index) => (
-                    <motion.tr
-                      key={funcionario.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.1 * index }}
-                      className="border-b border-gray-100 hover:bg-white/30 transition-colors"
-                    >
-                      <td className="py-3 px-4 font-medium text-foreground">
-                        {funcionario.nome}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {funcionario.cargo}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {funcionario.setor}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {funcionario.cpf}
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">
-                        {funcionario.email}
-                      </td>
-                      <td className="py-3 px-4">
+                {funcionarios.map((funcionario, index) => (
+                  <motion.tr
+                    key={funcionario.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    className="border-b border-gray-100 hover:bg-white/30 transition-colors"
+                  >
+                    <td className="py-3 px-4 font-medium text-foreground">
+                      {funcionario.nome}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {funcionario.cargo}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {funcionario.setor}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {funcionario.cpf}
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {funcionario.email}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleStatus(funcionario.id)}
+                      >
+                        <Badge
+                          variant={funcionario.status === 'ativo' ? 'default' : 'secondary'}
+                          className={funcionario.status === 'ativo'
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                          }
+                        >
+                          {funcionario.status}
+                        </Badge>
+                      </Button>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex space-x-2">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleToggleStatus(funcionario.id)}
+                          className="text-brand-blue hover:text-brand-blue-dark"
                         >
-                          <Badge 
-                            variant={funcionario.status === 'ativo' ? 'default' : 'secondary'}
-                            className={funcionario.status === 'ativo' 
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200' 
-                              : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                            }
-                          >
-                            {funcionario.status}
-                          </Badge>
+                          <Eye className="w-4 h-4" />
                         </Button>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-brand-blue hover:text-brand-blue-dark"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteFuncionario(funcionario.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteFuncionario(funcionario.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
                 </tbody>
               </table>
             </div>

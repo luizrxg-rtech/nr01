@@ -31,9 +31,18 @@ import {formularioService} from "@/services/formulario";
 import {perguntaService} from "@/services/pergunta";
 
 interface Media {
-  id: string;
-  idFormulario: string;
+  idPergunta: string;
   valor: number;
+}
+
+interface Distribuicao {
+  valor: number;
+  quantidade: number;
+}
+
+interface PerguntasComDistribuicao {
+  idPergunta: string;
+  distribuicoes: Distribuicao[];
 }
 
 export default function DashboardResultados() {
@@ -41,7 +50,9 @@ export default function DashboardResultados() {
   const [formularios, setFormularios] = useState<Formulario[] | []>([])
   const [perguntas, setPerguntas] = useState<Pergunta[] | []>([])
   const [respostas, setRespostas] = useState<Resposta[] | []>([])
-  const [medias, setMedias] = useState<Media[] | []>([])
+  const [mediasRespostas, setMediasRespostas] = useState<Media[] | []>([])
+  const [mediaGeral, setMediaGeral] = useState<number | null>(null)
+  const [perguntasComDistribuicoes, setPerguntasComDistribuicoes] = useState<PerguntasComDistribuicao[] | []>([])
   const [formularioSelecionado, setFormularioSelecionado] = useState<Formulario | null>(null)
 
   const { user, empresaId } = useAuth()
@@ -75,6 +86,14 @@ export default function DashboardResultados() {
         })
     }
   }, [formularioSelecionado])
+
+  useEffect(() => {
+    if (respostas) {
+      calculaMediasRespostas()
+      calculaMediaGeral()
+      calculaDistribuicoes()
+    }
+  }, [respostas]);
 
   const loadFormularios = async () => {
     if (!user) return
@@ -140,23 +159,77 @@ export default function DashboardResultados() {
     }
   }
 
+  const calculaMediasRespostas = () => {
+    let medias: Media[] = []
 
+    perguntas.forEach((pergunta, index) => {
+      let total: number = 0
+
+      respostas.forEach((resposta) => {
+        if (resposta.pergunta_id === pergunta.id) {
+          total += resposta.valor
+        }
+      })
+
+      medias.push({
+        idPergunta: pergunta.id,
+        valor: total / respostas.length
+      })
+    })
+
+    setMediasRespostas(medias)
+  }
+
+  const calculaMediaGeral = () => {
+    let total: number = 0
+
+    respostas.forEach((resposta) => {
+      total += resposta.valor
+    })
+
+    setMediaGeral(total / respostas.length)
+  }
+
+  const calculaDistribuicoes = () => {
+    let lPerguntasComDistribuicoes: PerguntasComDistribuicao[] = []
+
+    perguntas.forEach((pergunta, index) => {
+      let distribuicoes: Distribuicao[] = [
+        {valor: 1, quantidade: 0},
+        {valor: 2, quantidade: 0},
+        {valor: 3, quantidade: 0},
+        {valor: 4, quantidade: 0},
+        {valor: 5, quantidade: 0},
+      ]
+
+      respostas.forEach((resposta) => {
+        distribuicoes[resposta.valor - 1].quantidade += 1
+      })
+
+      lPerguntasComDistribuicoes.push(
+        {
+          idPergunta: pergunta.id,
+          distribuicoes: distribuicoes
+        }
+      )
+    })
+
+    setPerguntasComDistribuicoes(lPerguntasComDistribuicoes)
+  }
 
   const findFormularioByName = (nome: string) => {
     return formularios?.find(f =>
-      f.nome.toLowerCase().includes(formularioSelecionado?.nome || '')
+      f.nome.toLowerCase().includes(nome || '')
     ) || formularios[0]
   }
 
-  const formularioAtual = findFormularioByName(formularioSelecionado?.nome || '')
-
   const chartData = perguntas?.map((p, index) => ({
     pergunta: p.texto.substring(0, 30) + '...',
-    media: medias[index],
+    media: mediasRespostas[index],
     perguntaCompleta: p.texto
   }))
 
-  const distribuicaoData = perguntas[0]?.distribuicao.map(d => ({
+  const distribuicaoData = perguntasComDistribuicoes[0]?.distribuicoes.map(d => ({
     name: `${d.valor} - ${['Nunca', 'Raramente', 'Às vezes', 'Frequentemente', 'Sempre'][d.valor - 1]}`,
     value: d.quantidade,
     percentage: Math.round((d.quantidade / respostas.length) * 100)
@@ -168,9 +241,9 @@ export default function DashboardResultados() {
     {mes: 'Mar', satisfacao: 3.8, treinamento: 4.3},
   ]
 
-  const radarData = perguntas.map(p => ({
+  const radarData = perguntas.map((p, index) => ({
     subject: p.texto.substring(0, 20) + '...',
-    value: p.media,
+    value: mediasRespostas[index],
     fullText: p.texto
   }))
 
@@ -252,14 +325,14 @@ export default function DashboardResultados() {
                 <div>
                   <p className="text-sm text-gray-600">Média Geral</p>
                   <div className="flex items-center space-x-2">
-                    <p className={`text-2xl font-bold ${getStatusColor(formularioSelecionado?.mediaGeral)}`}>
-                      {formularioSelecionado?.mediaGeral.toFixed(1)}
+                    <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)}`}>
+                      {mediaGeral?.toFixed(1)}
                     </p>
                     <Badge
                       variant="secondary"
-                      className={`${getStatusColor(formularioSelecionado?.mediaGeral)} bg-opacity-10`}
+                      className={`${getStatusColor(mediaGeral || 0)} bg-opacity-10`}
                     >
-                      {getStatusLabel(formularioSelecionado?.mediaGeral)}
+                      {getStatusLabel(mediaGeral || 0)}
                     </Badge>
                   </div>
                 </div>
@@ -274,7 +347,7 @@ export default function DashboardResultados() {
                 <div>
                   <p className="text-sm text-gray-600">Maior Pontuação</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {Math.max(...perguntas.map(p => p.media)).toFixed(1)}
+                    {Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1)}
                   </p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-600"/>
@@ -507,21 +580,21 @@ export default function DashboardResultados() {
                         {pergunta.texto}
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`text-lg font-bold ${getStatusColor(pergunta.media)}`}>
-                          {pergunta.media.toFixed(1)}
+                        <span className={`text-lg font-bold ${getStatusColor(mediasRespostas[index]?.valor)}`}>
+                          {mediasRespostas[index]?.valor.toFixed(1)}
                         </span>
                       </td>
                       <td className="py-3 px-4">
                         <Badge
                           variant="secondary"
-                          className={`${getStatusColor(pergunta.media)} bg-opacity-10`}
+                          className={`${getStatusColor(mediasRespostas[index]?.valor)} bg-opacity-10`}
                         >
-                          {getStatusLabel(pergunta.media)}
+                          {getStatusLabel(mediasRespostas[index]?.valor)}
                         </Badge>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex space-x-1">
-                          {pergunta.distribuicao.map((dist, index) => (
+                          {perguntasComDistribuicoes[index]?.distribuicoes.map((dist, index) => (
                             <div
                               key={index}
                               className="w-8 h-6 rounded text-xs flex items-center justify-center text-white font-medium"

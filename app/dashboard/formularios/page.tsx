@@ -364,7 +364,7 @@ export default function GerenciarFormularios() {
               </div>
 
               <div>
-                <div className="space-y-6 overflow-y-auto max-h-96 p-6">
+                <div className="space-y-6 overflow-y-auto h-full max-h-[50vh] p-6">
 
                   {/* Nome do Formulário */}
                   <div className="space-y-2">
@@ -387,6 +387,7 @@ export default function GerenciarFormularios() {
                           animate={{opacity: 1, y: 0}}
                           className=" rounded-lg space-y-4"
                         >
+                          {index > 0 && <div className="h-px bg-gray-200"></div>}
                           <div className="flex justify-between items-start">
                             <Label>Pergunta {index + 1}</Label>
                             {formData.perguntas.length > 1 && (
@@ -407,19 +408,6 @@ export default function GerenciarFormularios() {
                             placeholder="Digite sua pergunta aqui..."
                             rows={2}
                           />
-
-                          <div className="bg-gray-50 p-3 rounded-lg">
-                            <p className="text-sm font-medium text-gray-700 mb-2">
-                              Opções
-                            </p>
-                            <div className="grid grid-cols-5 gap-2 text-xs">
-                              {respostaOptions.map(option => (
-                                <div key={option.value} className="text-center p-2 bg-white rounded border">
-                                  {option.label}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
                         </motion.div>
                       ))}
                     </div>

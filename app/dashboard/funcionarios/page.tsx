@@ -60,7 +60,7 @@ export default function GerenciarFuncionarios() {
   const { user, empresaId } = useAuth();
   const { setLoading } = useLoading();
 
-  // Load funcionarios - only depends on user and empresaId
+  // Load funcionarios - simplified with no complex dependencies
   useEffect(() => {
     if (!user || !empresaId) return;
 
@@ -82,12 +82,12 @@ export default function GerenciarFuncionarios() {
           console.error('Error loading funcionarios:', error);
           toast.error('Erro ao carregar funcionários');
         }
-      }
-      
-      // Always set loading to false, regardless of success or error
-      if (isMounted) {
-        console.log('Setting loading to false');
-        setLoading(false);
+      } finally {
+        // Always set loading to false, regardless of success or error
+        if (isMounted) {
+          console.log('Setting loading to false');
+          setLoading(false);
+        }
       }
     };
 
@@ -96,7 +96,20 @@ export default function GerenciarFuncionarios() {
     return () => {
       isMounted = false;
     };
-  }, [user, empresaId, setLoading]); // Added setLoading back to dependencies since it's stable
+  }, [user, empresaId]); // Removed setLoading from dependencies
+
+  // Helper function to reload funcionarios data
+  const reloadFuncionarios = async () => {
+    if (!empresaId) return;
+    
+    try {
+      const updatedFuncionarios = await funcionarioService.getByEmpresaId(empresaId);
+      setFuncionarios(updatedFuncionarios);
+    } catch (error: any) {
+      console.error('Error reloading funcionarios:', error);
+      toast.error('Erro ao recarregar funcionários');
+    }
+  };
 
   const validateEmployee = (employee: any): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
@@ -307,8 +320,7 @@ export default function GerenciarFuncionarios() {
       await funcionarioService.createMany(funcionariosData);
       
       // Reload data
-      const updatedFuncionarios = await funcionarioService.getByEmpresaId(empresaId);
-      setFuncionarios(updatedFuncionarios);
+      await reloadFuncionarios();
       
       // Clear preview and reset form
       setParsedEmployees([]);
@@ -415,8 +427,7 @@ export default function GerenciarFuncionarios() {
       }
 
       // Reload data
-      const updatedFuncionarios = await funcionarioService.getByEmpresaId(empresaId);
-      setFuncionarios(updatedFuncionarios);
+      await reloadFuncionarios();
       
       setShowAddForm(false);
       setEditingFuncionario(null);

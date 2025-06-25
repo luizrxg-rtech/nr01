@@ -59,7 +59,7 @@ export default function DashboardResultados() {
   const { setLoading } = useLoading()
 
   useEffect(() => {
-    if (user) {
+    if (user && empresaId) {
       loadFuncionarios()
         .then((data) => {
           if (data) setFuncionarios(data)
@@ -72,7 +72,7 @@ export default function DashboardResultados() {
           }
         })
     }
-  }, [user])
+  }, [user, empresaId])
 
   useEffect(() => {
     if (formularioSelecionado) {
@@ -96,8 +96,7 @@ export default function DashboardResultados() {
   }, [respostas]);
 
   const loadFormularios = async () => {
-    if (!user) return
-    if (!empresaId) return
+    if (!user || !empresaId) return
 
     setLoading(true)
 
@@ -111,8 +110,7 @@ export default function DashboardResultados() {
   }
 
   const loadPerguntas = async () => {
-    if (!user) return
-    if (!formularioSelecionado) return
+    if (!user || !formularioSelecionado) return
 
     setLoading(true)
 
@@ -128,8 +126,7 @@ export default function DashboardResultados() {
   }
 
   const loadRespostas = async () => {
-    if (!user) return
-    if (!formularioSelecionado) return
+    if (!user || !formularioSelecionado) return
 
     setLoading(true)
 
@@ -145,8 +142,7 @@ export default function DashboardResultados() {
   }
 
   const loadFuncionarios = async () => {
-    if (!user) return
-    if (!empresaId) return
+    if (!user || !empresaId) return
 
     setLoading(true)
 

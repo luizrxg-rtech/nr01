@@ -60,26 +60,40 @@ export default function GerenciarFuncionarios() {
   const { user, empresaId } = useAuth();
   const { setLoading } = useLoading();
 
+  // Load funcionarios - only depends on user and empresaId
   useEffect(() => {
-    if (user && empresaId) {
-      loadFuncionarios();
-    }
-  }, [user, empresaId]);
+    if (!user || !empresaId) return;
 
-  const loadFuncionarios = async () => {
-    if (!empresaId) return;
+    let isMounted = true;
 
-    setLoading(true);
-    try {
-      const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
-      setFuncionarios(funcionariosData);
-    } catch (error: any) {
-      toast.error('Erro ao carregar funcionários');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const loadFuncionarios = async () => {
+      setLoading(true);
+      try {
+        console.log('Loading funcionarios for empresa:', empresaId);
+        const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
+        
+        if (isMounted) {
+          console.log('Funcionarios loaded successfully:', funcionariosData.length);
+          setFuncionarios(funcionariosData);
+        }
+      } catch (error: any) {
+        if (isMounted) {
+          console.error('Error loading funcionarios:', error);
+          toast.error('Erro ao carregar funcionários');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadFuncionarios();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, empresaId]); // Only these dependencies
 
   const validateEmployee = (employee: any): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];
@@ -290,7 +304,8 @@ export default function GerenciarFuncionarios() {
       await funcionarioService.createMany(funcionariosData);
       
       // Reload data
-      await loadFuncionarios();
+      const updatedFuncionarios = await funcionarioService.getByEmpresaId(empresaId);
+      setFuncionarios(updatedFuncionarios);
       
       // Clear preview and reset form
       setParsedEmployees([]);
@@ -396,7 +411,10 @@ export default function GerenciarFuncionarios() {
         toast.success('Funcionário cadastrado com sucesso!');
       }
 
-      await loadFuncionarios();
+      // Reload data
+      const updatedFuncionarios = await funcionarioService.getByEmpresaId(empresaId);
+      setFuncionarios(updatedFuncionarios);
+      
       setShowAddForm(false);
       setEditingFuncionario(null);
       setFormData({
@@ -471,7 +489,7 @@ export default function GerenciarFuncionarios() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">Gerenciar Funcionários</h1>
           <p className="text-gray-600">
-            Importe dados de funcionários via planilha ou gerencie individualmente.
+            Importe dados de funcionários via planilhas de forma simples.
           </p>
         </div>
         <Button

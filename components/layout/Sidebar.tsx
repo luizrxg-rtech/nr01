@@ -112,7 +112,7 @@ export default function Sidebar({children}: SidebarProps) {
 
         {/* Page content */}
         <main className="p-4 lg:p-8">
-          {loading ? <LoadingScreen/> : children}
+          {children}
         </main>
       </div>
     </div>

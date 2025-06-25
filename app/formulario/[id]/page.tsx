@@ -33,6 +33,12 @@ const respostaOptions = [
   { value: '5', label: '5 - Sempre', color: 'text-green-700' }
 ];
 
+// Helper function to validate UUID format
+function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+}
+
 export default function ResponderFormulario({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [formulario, setFormulario] = useState<Formulario | null>(null);
@@ -48,6 +54,13 @@ export default function ResponderFormulario({ params }: { params: { id: string }
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Validate UUID format before making any requests
+    if (!isValidUUID(params.id)) {
+      setError('ID do formulário inválido. Verifique o link e tente novamente.');
+      setIsLoading(false);
+      return;
+    }
+
     loadFormularioData();
   }, [params.id]);
 

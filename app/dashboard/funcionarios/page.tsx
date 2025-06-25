@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { funcionarioService } from '@/services/funcionario';
 import type { Funcionario } from '@/lib/supabase';
+import * as XLSX from 'xlsx';
 
 interface ParsedEmployee {
   nome: string;
@@ -95,7 +96,7 @@ export default function GerenciarFuncionarios() {
       errors.push('Setor deve ter pelo menos 2 caracteres');
     }
 
-    if (!employee.cpf || employee.cpf.replace(/\D/g, '').length !== 11) {
+    if (!employee.cpf || employee.cpf.toString().replace(/\D/g, '').length !== 11) {
       errors.push('CPF deve ter 11 dígitos');
     }
 
@@ -146,6 +147,65 @@ export default function GerenciarFuncionarios() {
     return employees;
   };
 
+  const parseExcelFile = (file: File): Promise<ParsedEmployee[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Get the first worksheet
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          
+          // Convert to JSON
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (jsonData.length < 2) {
+            throw new Error('Arquivo deve conter pelo menos um cabeçalho e uma linha de dados');
+          }
+
+          const employees: ParsedEmployee[] = [];
+          
+          // Skip header row (index 0)
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i] as any[];
+            
+            if (row && row.length >= 5 && row.some(cell => cell && cell.toString().trim())) {
+              const employee = {
+                nome: row[0] ? row[0].toString().trim() : '',
+                cargo: row[1] ? row[1].toString().trim() : '',
+                setor: row[2] ? row[2].toString().trim() : '',
+                cpf: row[3] ? row[3].toString().trim() : '',
+                email: row[4] ? row[4].toString().trim() : ''
+              };
+
+              const validation = validateEmployee(employee);
+              
+              employees.push({
+                ...employee,
+                valid: validation.valid,
+                errors: validation.errors
+              });
+            }
+          }
+
+          resolve(employees);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => {
+        reject(new Error('Erro ao ler o arquivo'));
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -160,9 +220,20 @@ export default function GerenciarFuncionarios() {
     setShowPreview(false);
 
     try {
-      // Read file content
-      const text = await file.text();
-      const employees = parseCSVFile(text);
+      let employees: ParsedEmployee[] = [];
+      
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      
+      if (fileExtension === 'csv') {
+        // Handle CSV files
+        const text = await file.text();
+        employees = parseCSVFile(text);
+      } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        // Handle Excel files
+        employees = await parseExcelFile(file);
+      } else {
+        throw new Error('Formato de arquivo não suportado. Use CSV, XLSX ou XLS.');
+      }
 
       if (employees.length === 0) {
         toast.error('Nenhum funcionário válido encontrado no arquivo');
@@ -258,17 +329,13 @@ export default function GerenciarFuncionarios() {
       ["Pedro Costa", "Desenvolvedor", "TI", "111.222.333-44", "pedro@empresa.com"]
     ];
 
-    const csvContent = data.map(row =>
-      row.map(cell => `"${cell}"`).join(',')
-    ).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'template_funcionarios.csv';
-    link.click();
-    window.URL.revokeObjectURL(url);
+    // Create Excel file
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários");
+    
+    // Download as Excel file
+    XLSX.writeFile(workbook, 'template_funcionarios.xlsx');
 
     toast.success('Template baixado com sucesso!');
   };
@@ -514,11 +581,13 @@ export default function GerenciarFuncionarios() {
                     <div className="text-sm text-blue-800">
                       <p className="font-medium mb-1">Formato da Planilha:</p>
                       <ul className="space-y-1 text-xs">
-                        <li>• Nome: Nome completo do funcionário</li>
-                        <li>• Cargo: Cargo ou função</li>
-                        <li>• Setor: Setor do qual o funcionário faz parte</li>
-                        <li>• CPF: Documento com pontuação</li>
-                        <li>• Email: Email corporativo</li>
+                        <li>• <strong>Coluna A:</strong> Nome completo do funcionário</li>
+                        <li>• <strong>Coluna B:</strong> Cargo ou função</li>
+                        <li>• <strong>Coluna C:</strong> Setor do funcionário</li>
+                        <li>• <strong>Coluna D:</strong> CPF (com ou sem pontuação)</li>
+                        <li>• <strong>Coluna E:</strong> Email corporativo</li>
+                        <li className="mt-2 text-blue-700">• A primeira linha deve conter os cabeçalhos</li>
+                        <li>• Suporta formatos: CSV, XLSX, XLS</li>
                       </ul>
                     </div>
                   </div>
@@ -530,7 +599,7 @@ export default function GerenciarFuncionarios() {
                   className="w-full"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Baixar Template
+                  Baixar Template (Excel)
                 </Button>
               </div>
             </div>

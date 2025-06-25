@@ -17,13 +17,25 @@ import {
   Trash2,
   Eye,
   Plus,
-  Edit
+  Edit,
+  FileCheck,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { funcionarioService } from '@/services/funcionario';
 import type { Funcionario } from '@/lib/supabase';
+
+interface ParsedEmployee {
+  nome: string;
+  cargo: string;
+  setor: string;
+  cpf: string;
+  email: string;
+  valid: boolean;
+  errors: string[];
+}
 
 export default function GerenciarFuncionarios() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
@@ -39,6 +51,9 @@ export default function GerenciarFuncionarios() {
     email: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [parsedEmployees, setParsedEmployees] = useState<ParsedEmployee[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { user, empresaId } = useAuth();
@@ -65,6 +80,72 @@ export default function GerenciarFuncionarios() {
     }
   };
 
+  const validateEmployee = (employee: any): { valid: boolean; errors: string[] } => {
+    const errors: string[] = [];
+
+    if (!employee.nome || employee.nome.trim().length < 2) {
+      errors.push('Nome deve ter pelo menos 2 caracteres');
+    }
+
+    if (!employee.cargo || employee.cargo.trim().length < 2) {
+      errors.push('Cargo deve ter pelo menos 2 caracteres');
+    }
+
+    if (!employee.setor || employee.setor.trim().length < 2) {
+      errors.push('Setor deve ter pelo menos 2 caracteres');
+    }
+
+    if (!employee.cpf || employee.cpf.replace(/\D/g, '').length !== 11) {
+      errors.push('CPF deve ter 11 dígitos');
+    }
+
+    if (!employee.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee.email)) {
+      errors.push('Email inválido');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors
+    };
+  };
+
+  const parseCSVFile = (text: string): ParsedEmployee[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      throw new Error('Arquivo deve conter pelo menos um cabeçalho e uma linha de dados');
+    }
+
+    // Parse CSV (handling both comma and semicolon separators)
+    const separator = text.includes(';') ? ';' : ',';
+    const headers = lines[0].split(separator).map(h => h.trim().replace(/"/g, ''));
+    const employees: ParsedEmployee[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(separator).map(v => v.trim().replace(/"/g, ''));
+      
+      if (values.length >= 5 && values.some(v => v.trim())) {
+        const employee = {
+          nome: values[0] || '',
+          cargo: values[1] || '',
+          setor: values[2] || '',
+          cpf: values[3] || '',
+          email: values[4] || ''
+        };
+
+        const validation = validateEmployee(employee);
+        
+        employees.push({
+          ...employee,
+          valid: validation.valid,
+          errors: validation.errors
+        });
+      }
+    }
+
+    return employees;
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -75,60 +156,30 @@ export default function GerenciarFuncionarios() {
     }
 
     setIsUploading(true);
+    setParsedEmployees([]);
+    setShowPreview(false);
 
     try {
       // Read file content
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length < 2) {
-        toast.error('Arquivo deve conter pelo menos um cabeçalho e uma linha de dados');
-        setIsUploading(false);
-        return;
-      }
+      const employees = parseCSVFile(text);
 
-      // Parse CSV (assuming comma-separated)
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      const funcionariosData: any[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-        
-        if (values.length >= 5) {
-          funcionariosData.push({
-            empresa_id: empresaId,
-            nome: values[0] || '',
-            cargo: values[1] || '',
-            setor: values[2] || '',
-            cpf: values[3] || '',
-            email: values[4] || '',
-            status: 'ativo'
-          });
-        }
-      }
-
-      if (funcionariosData.length === 0) {
+      if (employees.length === 0) {
         toast.error('Nenhum funcionário válido encontrado no arquivo');
-        setIsUploading(false);
         return;
       }
 
-      // Save to database
-      await funcionarioService.createMany(funcionariosData);
+      setParsedEmployees(employees);
+      setShowPreview(true);
       
-      // Reload data
-      await loadFuncionarios();
-      
-      setUploadSuccess(true);
-      toast.success(`${funcionariosData.length} funcionários importados com sucesso!`);
+      const validCount = employees.filter(e => e.valid).length;
+      const invalidCount = employees.length - validCount;
 
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (invalidCount > 0) {
+        toast.warning(`${validCount} funcionários válidos, ${invalidCount} com erros encontrados. Revise os dados antes de processar.`);
+      } else {
+        toast.success(`${validCount} funcionários válidos encontrados. Clique em "Processar Planilha" para importar.`);
       }
-
-      // Hide success message after 3 seconds
-      setTimeout(() => setUploadSuccess(false), 3000);
 
     } catch (error: any) {
       toast.error('Erro ao processar arquivo: ' + (error.message || 'Erro desconhecido'));
@@ -138,11 +189,73 @@ export default function GerenciarFuncionarios() {
     }
   };
 
+  const handleProcessSpreadsheet = async () => {
+    if (!empresaId) {
+      toast.error('Empresa não identificada');
+      return;
+    }
+
+    const validEmployees = parsedEmployees.filter(e => e.valid);
+    
+    if (validEmployees.length === 0) {
+      toast.error('Nenhum funcionário válido para processar');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const funcionariosData = validEmployees.map(employee => ({
+        empresa_id: empresaId,
+        nome: employee.nome.trim(),
+        cargo: employee.cargo.trim(),
+        setor: employee.setor.trim(),
+        cpf: employee.cpf.replace(/\D/g, ''),
+        email: employee.email.trim(),
+        status: 'ativo' as const
+      }));
+
+      // Save to database
+      await funcionarioService.createMany(funcionariosData);
+      
+      // Reload data
+      await loadFuncionarios();
+      
+      // Clear preview and reset form
+      setParsedEmployees([]);
+      setShowPreview(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      setUploadSuccess(true);
+      toast.success(`${validEmployees.length} funcionários importados com sucesso!`);
+
+      // Hide success message after 3 seconds
+      setTimeout(() => setUploadSuccess(false), 3000);
+
+    } catch (error: any) {
+      toast.error('Erro ao importar funcionários: ' + (error.message || 'Erro desconhecido'));
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setParsedEmployees([]);
+    setShowPreview(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleDownloadTemplate = () => {
     const data = [
       ["Nome", "Cargo", "Setor", "CPF", "Email"],
       ["João Silva", "Analista", "TI", "123.456.789-00", "joao@empresa.com"],
-      ["Maria Santos", "Gerente", "RH", "987.654.321-00", "maria@empresa.com"]
+      ["Maria Santos", "Gerente", "RH", "987.654.321-00", "maria@empresa.com"],
+      ["Pedro Costa", "Desenvolvedor", "TI", "111.222.333-44", "pedro@empresa.com"]
     ];
 
     const csvContent = data.map(row =>
@@ -341,7 +454,7 @@ export default function GerenciarFuncionarios() {
                       type="file"
                       accept=".csv,.xlsx,.xls"
                       onChange={handleFileUpload}
-                      disabled={isUploading}
+                      disabled={isUploading || isProcessing}
                       className="cursor-pointer"
                     />
                   </div>
@@ -361,8 +474,36 @@ export default function GerenciarFuncionarios() {
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full"
                     />
-                    <span>Processando planilha...</span>
+                    <span>Analisando planilha...</span>
                   </motion.div>
+                )}
+
+                {showPreview && (
+                  <div className="flex space-x-3">
+                    <Button
+                      onClick={handleProcessSpreadsheet}
+                      disabled={isProcessing || parsedEmployees.filter(e => e.valid).length === 0}
+                      className="brand-gradient hover:opacity-90 transition-opacity flex-1"
+                    >
+                      {isProcessing ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                        />
+                      ) : (
+                        <FileCheck className="w-4 h-4 mr-2" />
+                      )}
+                      {isProcessing ? 'Processando...' : `Processar Planilha (${parsedEmployees.filter(e => e.valid).length})`}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelPreview}
+                      disabled={isProcessing}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
 
@@ -396,6 +537,69 @@ export default function GerenciarFuncionarios() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Preview Section */}
+      {showPreview && parsedEmployees.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <FileCheck className="w-5 h-5 text-brand-green" />
+                <span>Prévia da Planilha</span>
+                <Badge variant="secondary">
+                  {parsedEmployees.filter(e => e.valid).length} válidos / {parsedEmployees.length} total
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 px-3 font-medium">Status</th>
+                      <th className="text-left py-2 px-3 font-medium">Nome</th>
+                      <th className="text-left py-2 px-3 font-medium">Cargo</th>
+                      <th className="text-left py-2 px-3 font-medium">Setor</th>
+                      <th className="text-left py-2 px-3 font-medium">CPF</th>
+                      <th className="text-left py-2 px-3 font-medium">Email</th>
+                      <th className="text-left py-2 px-3 font-medium">Erros</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parsedEmployees.map((employee, index) => (
+                      <tr key={index} className={`border-b border-gray-100 ${employee.valid ? 'bg-green-50' : 'bg-red-50'}`}>
+                        <td className="py-2 px-3">
+                          {employee.valid ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600" />
+                          )}
+                        </td>
+                        <td className="py-2 px-3">{employee.nome}</td>
+                        <td className="py-2 px-3">{employee.cargo}</td>
+                        <td className="py-2 px-3">{employee.setor}</td>
+                        <td className="py-2 px-3">{employee.cpf}</td>
+                        <td className="py-2 px-3">{employee.email}</td>
+                        <td className="py-2 px-3">
+                          {employee.errors.length > 0 && (
+                            <div className="text-xs text-red-600">
+                              {employee.errors.join(', ')}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Stats */}
       <motion.div

@@ -1,46 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import {
   FileText,
   CheckCircle,
   ArrowLeft,
   ArrowRight,
-  Send
+  Send,
+  User,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
-import {Formulario} from "@/lib/supabase";
-
-const formularios = [
-  {
-    id: '1',
-    nome: 'Pesquisa de Satisfação - Q1 2024',
-    perguntas: [
-      { id: 1, texto: 'Como você avalia o ambiente de trabalho da empresa?' },
-      { id: 2, texto: 'Você se sente motivado em suas tarefas diárias?' },
-      { id: 3, texto: 'A comunicação entre as equipes é eficiente?' },
-      { id: 4, texto: 'Você recebe feedback adequado sobre seu desempenho?' },
-      { id: 5, texto: 'As oportunidades de crescimento profissional são claras?' }
-    ]
-  },
-  {
-    id: '2',
-    nome: 'Avaliação de Treinamento',
-    perguntas: [
-      { id: 1, texto: 'O conteúdo do treinamento foi relevante para suas atividades?' },
-      { id: 2, texto: 'O instrutor demonstrou domínio do assunto?' },
-      { id: 3, texto: 'Os materiais fornecidos foram adequados?' },
-      { id: 4, texto: 'Você aplicaria os conhecimentos adquiridos no trabalho?' }
-    ]
-  }
-];
+import { formularioService } from '@/services/formulario';
+import { perguntaService } from '@/services/pergunta';
+import { respostaService } from '@/services/resposta';
+import { funcionarioService } from '@/services/funcionario';
+import type { Formulario, Pergunta, Funcionario } from '@/lib/supabase';
 
 const respostaOptions = [
   { value: '1', label: '1 - Nunca', color: 'text-red-600' },
@@ -52,36 +35,77 @@ const respostaOptions = [
 
 export default function ResponderFormulario({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const [formulario, setFormulario] = useState<Formulario | null>(null);
+  const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [respostas, setRespostas] = useState<Record<number, string>>({});
+  const [respostas, setRespostas] = useState<Record<string, string>>({});
+  const [funcionarioId, setFuncionarioId] = useState('');
+  const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<Funcionario | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const formulario = formularios[params.id];
+  useEffect(() => {
+    loadFormularioData();
+  }, [params.id]);
 
-  if (!formulario) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="card p-8 text-center">
-          <h2 className="text-2xl font-bold text-foreground mb-4">
-            Formulário não encontrado
-          </h2>
-          <p className="text-gray-600 mb-6">
-            O formulário que você está tentando acessar não existe ou foi removido.
-          </p>
-          <Button onClick={() => router.push('/')}>
-            Voltar ao Início
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  const loadFormularioData = async () => {
+    setIsLoading(true);
+    setError(null);
 
-  const totalQuestions = formulario.perguntas.length;
-  const progress = ((currentQuestion + 1) / totalQuestions) * 100;
-  const currentPergunta = formulario.perguntas[currentQuestion];
+    try {
+      // Buscar formulário
+      const formularioData = await formularioService.getById(params.id);
+      
+      if (!formularioData) {
+        setError('Formulário não encontrado');
+        return;
+      }
+
+      if (formularioData.status !== 'ativo') {
+        setError('Este formulário não está mais ativo');
+        return;
+      }
+
+      setFormulario(formularioData);
+
+      // Buscar perguntas do formulário
+      const perguntasData = await perguntaService.getByFormularioId(params.id);
+      
+      if (perguntasData.length === 0) {
+        setError('Este formulário não possui perguntas');
+        return;
+      }
+
+      setPerguntas(perguntasData);
+
+      // Buscar funcionários da empresa
+      const funcionariosData = await funcionarioService.getByEmpresaId(formularioData.empresa_id);
+      setFuncionarios(funcionariosData.filter(f => f.status === 'ativo'));
+
+    } catch (error: any) {
+      console.error('Erro ao carregar formulário:', error);
+      setError('Erro ao carregar formulário. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFuncionarioChange = (value: string) => {
+    setFuncionarioId(value);
+    const funcionario = funcionarios.find(f => f.id === value);
+    setFuncionarioSelecionado(funcionario || null);
+  };
+
+  const totalQuestions = perguntas.length;
+  const progress = totalQuestions > 0 ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
+  const currentPergunta = perguntas[currentQuestion];
 
   const handleAnswerChange = (value: string) => {
+    if (!currentPergunta) return;
+    
     setRespostas(prev => ({
       ...prev,
       [currentPergunta.id]: value
@@ -101,8 +125,13 @@ export default function ResponderFormulario({ params }: { params: { id: string }
   };
 
   const handleSubmit = async () => {
-    // Check if all questions are answered
-    const unansweredQuestions = formulario.perguntas.filter(
+    if (!funcionarioId) {
+      toast.error('Por favor, selecione um funcionário.');
+      return;
+    }
+
+    // Verificar se todas as perguntas foram respondidas
+    const unansweredQuestions = perguntas.filter(
       p => !respostas[p.id]
     );
 
@@ -113,19 +142,79 @@ export default function ResponderFormulario({ params }: { params: { id: string }
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Verificar se o funcionário já respondeu este formulário
+      const respostasExistentes = await respostaService.getByFuncionarioAndFormulario(
+        funcionarioId, 
+        params.id
+      );
 
-    console.log('Respostas enviadas:', {
-      formularioId: formulario.id,
-      respostas: respostas
-    });
+      if (respostasExistentes.length > 0) {
+        toast.error('Você já respondeu este formulário.');
+        setIsSubmitting(false);
+        return;
+      }
 
-    setIsSubmitting(false);
-    setIsCompleted(true);
-    toast.success('Respostas enviadas com sucesso!');
+      // Preparar dados das respostas
+      const respostasData = perguntas.map(pergunta => ({
+        formulario_id: params.id,
+        funcionario_id: funcionarioId,
+        pergunta_id: pergunta.id,
+        valor: parseInt(respostas[pergunta.id])
+      }));
+
+      // Salvar respostas
+      await respostaService.createMany(respostasData);
+
+      setIsCompleted(true);
+      toast.success('Respostas enviadas com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao salvar respostas:', error);
+      toast.error('Erro ao enviar respostas. Tente novamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="card p-8 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full mx-auto mb-4"
+          />
+          <p className="text-gray-600">Carregando formulário...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="card p-8 text-center max-w-md">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-4">
+            Ops! Algo deu errado
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {error}
+          </p>
+          <Button onClick={() => router.push('/')}>
+            Voltar ao Início
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Success state
   if (isCompleted) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -156,7 +245,10 @@ export default function ResponderFormulario({ params }: { params: { id: string }
             <div className="space-y-3">
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Formulário:</strong> {formulario.nome}
+                  <strong>Formulário:</strong> {formulario?.nome}
+                </p>
+                <p className="text-sm text-blue-800">
+                  <strong>Funcionário:</strong> {funcionarioSelecionado?.nome}
                 </p>
                 <p className="text-sm text-blue-800">
                   <strong>Perguntas respondidas:</strong> {totalQuestions}
@@ -189,7 +281,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                 </div>
                 <div>
                   <CardTitle className="text-xl text-foreground">
-                    {formulario.nome}
+                    {formulario?.nome}
                   </CardTitle>
                 </div>
               </div>
@@ -205,122 +297,178 @@ export default function ResponderFormulario({ params }: { params: { id: string }
           </Card>
         </motion.div>
 
-        {/* Question Card */}
-        <motion.div
-          key={currentQuestion}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle className="text-lg text-foreground">
-                {currentPergunta.texto}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <RadioGroup
-                value={respostas[currentPergunta.id] || ''}
-                onValueChange={handleAnswerChange}
-                className="space-y-4"
-              >
-                {respostaOptions.map((option) => (
-                  <motion.div
-                    key={option.value}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * parseInt(option.value) }}
-                    className="flex items-center space-x-3 p-4 rounded-lg border border-gray-200 hover:bg-white/50 transition-colors cursor-pointer"
-                    onClick={() => handleAnswerChange(option.value)}
-                  >
-                    <RadioGroupItem value={option.value} id={option.value} />
-                    <Label
-                      htmlFor={option.value}
-                      className={`flex-1 cursor-pointer font-medium ${option.color}`}
+        {/* Seleção de Funcionário */}
+        {!funcionarioSelecionado && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <Card className="card">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <User className="w-5 h-5 text-brand-blue" />
+                  <span>Identificação</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="funcionario">Selecione seu nome *</Label>
+                    <select
+                      id="funcionario"
+                      value={funcionarioId}
+                      onChange={(e) => handleFuncionarioChange(e.target.value)}
+                      className="w-full mt-2 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue"
                     >
-                      {option.label}
-                    </Label>
-                  </motion.div>
-                ))}
-              </RadioGroup>
+                      <option value="">Selecione seu nome...</option>
+                      {funcionarios.map((funcionario) => (
+                        <option key={funcionario.id} value={funcionario.id}>
+                          {funcionario.nome} - {funcionario.cargo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {funcionarioSelecionado && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        <strong>Nome:</strong> {funcionarioSelecionado.nome}
+                      </p>
+                      <p className="text-sm text-blue-800">
+                        <strong>Cargo:</strong> {funcionarioSelecionado.cargo}
+                      </p>
+                      <p className="text-sm text-blue-800">
+                        <strong>Setor:</strong> {funcionarioSelecionado.setor}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-              {/* Navigation Buttons */}
-              <div className="flex justify-between pt-6 border-t border-gray-200">
-                <Button
-                  variant="outline"
-                  onClick={handlePrevious}
-                  disabled={currentQuestion === 0}
-                  className="flex items-center space-x-2"
+        {/* Question Card */}
+        {funcionarioSelecionado && currentPergunta && (
+          <motion.div
+            key={currentQuestion}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="card">
+              <CardHeader>
+                <CardTitle className="text-lg text-foreground">
+                  {currentPergunta.texto}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <RadioGroup
+                  value={respostas[currentPergunta.id] || ''}
+                  onValueChange={handleAnswerChange}
+                  className="space-y-4"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Anterior</span>
-                </Button>
+                  {respostaOptions.map((option) => (
+                    <motion.div
+                      key={option.value}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 * parseInt(option.value) }}
+                      className="flex items-center space-x-3 p-4 rounded-lg border border-gray-200 hover:bg-white/50 transition-colors cursor-pointer"
+                      onClick={() => handleAnswerChange(option.value)}
+                    >
+                      <RadioGroupItem value={option.value} id={option.value} />
+                      <Label
+                        htmlFor={option.value}
+                        className={`flex-1 cursor-pointer font-medium ${option.color}`}
+                      >
+                        {option.label}
+                      </Label>
+                    </motion.div>
+                  ))}
+                </RadioGroup>
 
-                {currentQuestion === totalQuestions - 1 ? (
+                {/* Navigation Buttons */}
+                <div className="flex justify-between pt-6 border-t border-gray-200">
                   <Button
-                    onClick={handleSubmit}
-                    disabled={!respostas[currentPergunta.id] || isSubmitting}
-                    className="brand-gradient hover:opacity-90 transition-opacity flex items-center space-x-2"
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentQuestion === 0}
+                    className="flex items-center space-x-2"
                   >
-                    {isSubmitting ? (
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                      />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    <span>{isSubmitting ? 'Enviando...' : 'Enviar Respostas'}</span>
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Anterior</span>
                   </Button>
-                ) : (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!respostas[currentPergunta.id]}
-                    className="brand-gradient hover:opacity-90 transition-opacity flex items-center space-x-2"
-                  >
-                    <span>Próxima</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+
+                  {currentQuestion === totalQuestions - 1 ? (
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!respostas[currentPergunta.id] || isSubmitting}
+                      className="brand-gradient hover:opacity-90 transition-opacity flex items-center space-x-2"
+                    >
+                      {isSubmitting ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                        />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      <span>{isSubmitting ? 'Enviando...' : 'Enviar Respostas'}</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleNext}
+                      disabled={!respostas[currentPergunta.id]}
+                      className="brand-gradient hover:opacity-90 transition-opacity flex items-center space-x-2"
+                    >
+                      <span>Próxima</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Question Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-8"
-        >
-          <Card className="card">
-            <CardContent className="p-4">
-              <div className="flex flex-wrap gap-2">
-                {formulario.perguntas.map((pergunta, index) => (
-                  <button
-                    key={pergunta.id}
-                    onClick={() => setCurrentQuestion(index)}
-                    className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                      index === currentQuestion
-                        ? 'bg-brand-blue text-white'
-                        : respostas[pergunta.id]
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Clique nos números para navegar entre as perguntas
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
+        {funcionarioSelecionado && perguntas.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-8"
+          >
+            <Card className="card">
+              <CardContent className="p-4">
+                <div className="flex flex-wrap gap-2">
+                  {perguntas.map((pergunta, index) => (
+                    <button
+                      key={pergunta.id}
+                      onClick={() => setCurrentQuestion(index)}
+                      className={`w-8 h-8 rounded-full text-sm font-medium transition-colors ${
+                        index === currentQuestion
+                          ? 'bg-brand-blue text-white'
+                          : respostas[pergunta.id]
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Clique nos números para navegar entre as perguntas
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
     </div>
   );

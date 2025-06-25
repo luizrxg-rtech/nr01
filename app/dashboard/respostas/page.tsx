@@ -1,6 +1,6 @@
 'use client';
 
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {motion} from 'framer-motion';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -17,35 +17,164 @@ import {
   Download,
   Eye
 } from 'lucide-react';
-import {Formulario, Funcionario, Resposta} from "@/lib/supabase";
+import {toast} from 'sonner';
+import {useAuth} from '@/contexts/AuthContext';
+import {useLoading} from '@/contexts/LoadingContext';
+import {formularioService} from '@/services/formulario';
+import {funcionarioService} from '@/services/funcionario';
+import {respostaService} from '@/services/resposta';
+import {perguntaService} from '@/services/pergunta';
+import type {Formulario, Funcionario, Resposta, Pergunta} from '@/lib/supabase';
+
+interface RespostaCompleta {
+  id: string;
+  formulario_id: string;
+  funcionario_id: string;
+  pergunta_id: string;
+  valor: number;
+  created_at: string;
+  formulario: Formulario;
+  funcionario: Funcionario;
+  pergunta: Pergunta;
+}
+
+interface FuncionarioStatus {
+  id: string;
+  nome: string;
+  email: string;
+  cargo: string;
+  status: 'respondeu' | 'nao_respondeu';
+  dataResposta?: string;
+}
 
 export default function ControleRespostas() {
   const [filtroFormulario, setFiltroFormulario] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [formularios, setFormularios] = useState<Formulario[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [respostas, setRespostas] = useState<RespostaCompleta[]>([]);
+  const [funcionariosStatus, setFuncionariosStatus] = useState<FuncionarioStatus[]>([]);
+  const [formularioSelecionado, setFormularioSelecionado] = useState<string>('todos');
 
-  const formularios: Formulario[] = [];
+  const {user, empresaId} = useAuth();
+  const {setLoading} = useLoading();
 
-  const respostas: Resposta[] = [];
+  useEffect(() => {
+    if (user && empresaId) {
+      loadData();
+    }
+  }, [user, empresaId]);
 
-  const funcionarios: Funcionario[] = [];
+  useEffect(() => {
+    if (formularioSelecionado !== 'todos') {
+      loadRespostasFormulario(formularioSelecionado);
+    } else {
+      setRespostas([]);
+      setFuncionariosStatus([]);
+    }
+  }, [formularioSelecionado, funcionarios]);
+
+  const loadData = async () => {
+    if (!empresaId) return;
+
+    setLoading(true);
+    try {
+      // Carregar formulários
+      const formulariosData = await formularioService.getByEmpresaId(empresaId);
+      setFormularios(formulariosData);
+
+      // Carregar funcionários
+      const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
+      setFuncionarios(funcionariosData.filter(f => f.status === 'ativo'));
+
+    } catch (error: any) {
+      toast.error('Erro ao carregar dados');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRespostasFormulario = async (formularioId: string) => {
+    if (!formularioId || formularioId === 'todos') return;
+
+    setLoading(true);
+    try {
+      // Carregar respostas do formulário
+      const respostasData = await respostaService.getByFormularioId(formularioId);
+      
+      // Carregar perguntas do formulário
+      const perguntasData = await perguntaService.getByFormularioId(formularioId);
+      
+      // Encontrar o formulário
+      const formulario = formularios.find(f => f.id === formularioId);
+      
+      if (!formulario) return;
+
+      // Criar respostas completas com dados relacionados
+      const respostasCompletas: RespostaCompleta[] = respostasData.map(resposta => {
+        const funcionario = funcionarios.find(f => f.id === resposta.funcionario_id);
+        const pergunta = perguntasData.find(p => p.id === resposta.pergunta_id);
+        
+        return {
+          ...resposta,
+          formulario,
+          funcionario: funcionario!,
+          pergunta: pergunta!
+        };
+      }).filter(r => r.funcionario && r.pergunta);
+
+      setRespostas(respostasCompletas);
+
+      // Criar status dos funcionários
+      const funcionariosComStatus: FuncionarioStatus[] = funcionarios.map(funcionario => {
+        const respondeu = respostasData.some(r => r.funcionario_id === funcionario.id);
+        const primeiraResposta = respostasData.find(r => r.funcionario_id === funcionario.id);
+        
+        return {
+          id: funcionario.id,
+          nome: funcionario.nome,
+          email: funcionario.email,
+          cargo: funcionario.cargo,
+          status: respondeu ? 'respondeu' : 'nao_respondeu',
+          dataResposta: primeiraResposta?.created_at
+        };
+      });
+
+      setFuncionariosStatus(funcionariosComStatus);
+
+    } catch (error: any) {
+      toast.error('Erro ao carregar respostas');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredRespostas = respostas.filter(resposta => {
-    const matchesFormulario = filtroFormulario === 'todos' || resposta.formularioNome === filtroFormulario;
-    const matchesStatus = filtroStatus === 'todos' || resposta.status === filtroStatus;
-    const matchesSearch = resposta.funcionarioNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      resposta.funcionarioEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filtroStatus === 'todos' || 
+      (filtroStatus === 'completa' && resposta.valor > 0);
+    const matchesSearch = resposta.funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      resposta.funcionario.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesFormulario && matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch;
+  });
+
+  const filteredFuncionarios = funcionariosStatus.filter(funcionario => {
+    const matchesStatus = filtroStatus === 'todos' || 
+      (filtroStatus === 'respondeu' && funcionario.status === 'respondeu') ||
+      (filtroStatus === 'nao_respondeu' && funcionario.status === 'nao_respondeu');
+    const matchesSearch = funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      funcionario.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    return matchesStatus && matchesSearch;
   });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'respondeu':
-      case 'completa':
-        return <Badge className="bg-green-100 text-green-800">Completa</Badge>;
-      case 'parcial':
-        return <Badge className="bg-yellow-100 text-yellow-800">Parcial</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Respondeu</Badge>;
       case 'nao_respondeu':
         return <Badge className="bg-red-100 text-red-800">Não Respondeu</Badge>;
       default:
@@ -66,15 +195,14 @@ export default function ControleRespostas() {
 
   const stats = {
     totalRespostas: respostas.length,
-    respostasCompletas: respostas.filter(r => r.status === 'completa').length,
-    respostasParciais: respostas.filter(r => r.status === 'parcial').length,
-    funcionariosQueResponderam: funcionarios.filter(f => f.status === 'respondeu').length,
-    funcionariosQueNaoResponderam: funcionarios.filter(f => f.status === 'nao_respondeu').length
+    funcionariosQueResponderam: funcionariosStatus.filter(f => f.status === 'respondeu').length,
+    funcionariosQueNaoResponderam: funcionariosStatus.filter(f => f.status === 'nao_respondeu').length,
+    totalFuncionarios: funcionarios.length
   };
 
   const handleExportData = () => {
     // Mock export functionality
-    console.log('Exportando dados...');
+    toast.success('Funcionalidade de exportação será implementada em breve');
   };
 
   return (
@@ -140,7 +268,7 @@ export default function ControleRespostas() {
               <div>
                 <p className="text-sm text-gray-600">Taxa de Resposta</p>
                 <p className="text-2xl font-bold text-brand-green">
-                  {funcionarios?.length > 0 ? `${Math.round((stats.funcionariosQueResponderam / funcionarios.length) * 100)}%` : "0%"}
+                  {stats.totalFuncionarios > 0 ? `${Math.round((stats.funcionariosQueResponderam / stats.totalFuncionarios) * 100)}%` : "0%"}
                 </p>
               </div>
               <Users className="w-8 h-8 text-brand-green"/>
@@ -174,17 +302,14 @@ export default function ControleRespostas() {
                 />
               </div>
 
-              <Select value={filtroFormulario} onValueChange={setFiltroFormulario}>
+              <Select value={formularioSelecionado} onValueChange={setFormularioSelecionado}>
                 <SelectTrigger>
                   <SelectValue placeholder="Formulário"/>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os Formulários</SelectItem>
-                  {formularios.map((form, index) => (
-                    <SelectItem
-                      key={index}
-                      value={form.id}
-                    >
+                  <SelectItem value="todos">Selecione um Formulário</SelectItem>
+                  {formularios.map((form) => (
+                    <SelectItem key={form.id} value={form.id}>
                       {form.nome}
                     </SelectItem>
                   ))}
@@ -197,8 +322,8 @@ export default function ControleRespostas() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos os Status</SelectItem>
-                  <SelectItem value="completa">Completa</SelectItem>
-                  <SelectItem value="parcial">Parcial</SelectItem>
+                  <SelectItem value="respondeu">Respondeu</SelectItem>
+                  <SelectItem value="nao_respondeu">Não Respondeu</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -215,98 +340,154 @@ export default function ControleRespostas() {
         </Card>
       </motion.div>
 
-      {/* Status Overview */}
-      <motion.div
-        initial={{opacity: 0, y: 20}}
-        animate={{opacity: 1, y: 0}}
-        transition={{delay: 0.6}}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-      >
-        {/* Respostas Recebidas */}
-        <Card className="card">
-          <CardHeader>
-            <CardTitle>Respostas Recebidas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredRespostas.map((resposta, index) => (
-                <motion.div
-                  key={resposta.id}
-                  initial={{opacity: 0, y: 10}}
-                  animate={{opacity: 1, y: 0}}
-                  transition={{delay: 0.1 * index}}
-                  className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="font-semibold text-foreground">{resposta.funcionarioNome}</h4>
-                      <p className="text-sm text-gray-600">{resposta.funcionarioEmail}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {getStatusBadge(resposta.status)}
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4"/>
-                      </Button>
-                    </div>
+      {/* Content */}
+      {formularioSelecionado === 'todos' ? (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.6}}
+        >
+          <Card className="card">
+            <CardContent className="p-8 text-center">
+              <MessageSquare className="w-16 h-16 text-gray-400 mx-auto mb-4"/>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                Selecione um Formulário
+              </h3>
+              <p className="text-gray-600">
+                Escolha um formulário nos filtros acima para visualizar as respostas e o status dos funcionários.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.6}}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+        >
+          {/* Respostas Recebidas */}
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Respostas Recebidas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredRespostas.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
+                    <p className="text-gray-600">Nenhuma resposta encontrada</p>
                   </div>
-
-                  <div className="mb-3">
-                    <p className="text-sm font-medium text-gray-700">
-                      Formulário: {resposta.formularioNome}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Respondido em: {new Date(resposta.dataResposta).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium mb-1">Resumo das Respostas:</p>
-                    <div className="space-y-1">
-                      {resposta.respostas.slice(0, 2).map((r, index) => (
-                        <div key={index} className="flex justify-between">
-                          <span className="truncate mr-2">{r.pergunta}</span>
-                          <span className="font-medium">{getRespostaLabel(r.resposta)}</span>
+                ) : (
+                  // Agrupar respostas por funcionário
+                  Object.values(
+                    filteredRespostas.reduce((acc, resposta) => {
+                      const funcionarioId = resposta.funcionario_id;
+                      if (!acc[funcionarioId]) {
+                        acc[funcionarioId] = {
+                          funcionario: resposta.funcionario,
+                          formulario: resposta.formulario,
+                          respostas: [],
+                          dataResposta: resposta.created_at
+                        };
+                      }
+                      acc[funcionarioId].respostas.push(resposta);
+                      return acc;
+                    }, {} as any)
+                  ).map((grupo: any, index) => (
+                    <motion.div
+                      key={grupo.funcionario.id}
+                      initial={{opacity: 0, y: 10}}
+                      animate={{opacity: 1, y: 0}}
+                      transition={{delay: 0.1 * index}}
+                      className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="font-semibold text-foreground">{grupo.funcionario.nome}</h4>
+                          <p className="text-sm text-gray-600">{grupo.funcionario.email}</p>
+                          <p className="text-sm text-gray-600">{grupo.funcionario.cargo}</p>
                         </div>
-                      ))}
-                      {resposta.respostas.length > 2 && (
-                        <p className="text-gray-500 italic">
-                          ... e mais {resposta.respostas.length - 2} resposta(s)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                        <div className="flex items-center space-x-2">
+                          <Badge className="bg-green-100 text-green-800">Completa</Badge>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="w-4 h-4"/>
+                          </Button>
+                        </div>
+                      </div>
 
-        {/* Status dos Funcionários */}
-        <Card className="card">
-          <CardHeader>
-            <CardTitle>Status dos Funcionários</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {funcionarios.map((funcionario, index) => (
-                <motion.div
-                  key={funcionario.id}
-                  initial={{opacity: 0, x: -10}}
-                  animate={{opacity: 1, x: 0}}
-                  transition={{delay: 0.05 * index}}
-                  className="flex justify-between items-center p-3 rounded-lg hover:bg-white/30 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-foreground">{funcionario.nome}</p>
-                    <p className="text-sm text-gray-600">{funcionario.email}</p>
+                      <div className="mb-3">
+                        <p className="text-sm font-medium text-gray-700">
+                          Formulário: {grupo.formulario.nome}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Respondido em: {new Date(grupo.dataResposta).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+
+                      <div className="text-sm text-gray-600">
+                        <p className="font-medium mb-1">Resumo das Respostas:</p>
+                        <div className="space-y-1">
+                          {grupo.respostas.slice(0, 2).map((r: any, index: number) => (
+                            <div key={index} className="flex justify-between">
+                              <span className="truncate mr-2">{r.pergunta.texto}</span>
+                              <span className="font-medium">{getRespostaLabel(r.valor)}</span>
+                            </div>
+                          ))}
+                          {grupo.respostas.length > 2 && (
+                            <p className="text-gray-500 italic">
+                              ... e mais {grupo.respostas.length - 2} resposta(s)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Status dos Funcionários */}
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Status dos Funcionários</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {filteredFuncionarios.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
+                    <p className="text-gray-600">Nenhum funcionário encontrado</p>
                   </div>
-                  {getStatusBadge(funcionario.status)}
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+                ) : (
+                  filteredFuncionarios.map((funcionario, index) => (
+                    <motion.div
+                      key={funcionario.id}
+                      initial={{opacity: 0, x: -10}}
+                      animate={{opacity: 1, x: 0}}
+                      transition={{delay: 0.05 * index}}
+                      className="flex justify-between items-center p-3 rounded-lg hover:bg-white/30 transition-colors"
+                    >
+                      <div>
+                        <p className="font-medium text-foreground">{funcionario.nome}</p>
+                        <p className="text-sm text-gray-600">{funcionario.email}</p>
+                        <p className="text-sm text-gray-600">{funcionario.cargo}</p>
+                        {funcionario.dataResposta && (
+                          <p className="text-xs text-gray-500">
+                            Respondeu em: {new Date(funcionario.dataResposta).toLocaleDateString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                      {getStatusBadge(funcionario.status)}
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }

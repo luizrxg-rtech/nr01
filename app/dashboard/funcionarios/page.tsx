@@ -67,9 +67,10 @@ export default function GerenciarFuncionarios() {
     let isMounted = true;
 
     const loadFuncionarios = async () => {
+      console.log('Starting to load funcionarios for empresa:', empresaId);
       setLoading(true);
+      
       try {
-        console.log('Loading funcionarios for empresa:', empresaId);
         const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
         
         if (isMounted) {
@@ -81,10 +82,12 @@ export default function GerenciarFuncionarios() {
           console.error('Error loading funcionarios:', error);
           toast.error('Erro ao carregar funcionários');
         }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      }
+      
+      // Always set loading to false, regardless of success or error
+      if (isMounted) {
+        console.log('Setting loading to false');
+        setLoading(false);
       }
     };
 
@@ -93,7 +96,7 @@ export default function GerenciarFuncionarios() {
     return () => {
       isMounted = false;
     };
-  }, [user, empresaId]); // Only these dependencies
+  }, [user, empresaId, setLoading]); // Added setLoading back to dependencies since it's stable
 
   const validateEmployee = (employee: any): { valid: boolean; errors: string[] } => {
     const errors: string[] = [];

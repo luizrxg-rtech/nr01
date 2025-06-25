@@ -61,96 +61,96 @@ export default function ControleRespostas() {
   const {user, empresaId} = useAuth();
   const {setLoading} = useLoading();
 
-  const loadInitialData = useCallback(async () => {
+  // Load initial data
+  useEffect(() => {
     if (!user || !empresaId) return;
 
-    setIsInitialLoading(true);
-    setLoading(true);
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      setLoading(true);
 
-    try {
-      const [formulariosData, funcionariosData] = await Promise.all([
-        formularioService.getByEmpresaId(empresaId),
-        funcionarioService.getByEmpresaId(empresaId)
-      ]);
+      try {
+        const [formulariosData, funcionariosData] = await Promise.all([
+          formularioService.getByEmpresaId(empresaId),
+          funcionarioService.getByEmpresaId(empresaId)
+        ]);
 
-      setFormularios(formulariosData || []);
-      setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
-    } catch (error: any) {
-      toast.error('Erro ao carregar dados');
-      console.error(error);
-    } finally {
-      setIsInitialLoading(false);
-      setLoading(false);
-    }
+        setFormularios(formulariosData || []);
+        setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
+      } catch (error: any) {
+        toast.error('Erro ao carregar dados');
+        console.error(error);
+      } finally {
+        setIsInitialLoading(false);
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
   }, [user, empresaId, setLoading]);
 
-  const loadRespostasFormulario = useCallback(async (formularioId: string) => {
-    if (!formularioId || formularioId === 'todos') {
+  // Load responses when form is selected
+  useEffect(() => {
+    if (formularioSelecionado === 'todos' || isInitialLoading) {
       setRespostas([]);
       setFuncionariosStatus([]);
       return;
     }
 
-    setLoading(true);
-    try {
-      const [respostasData, perguntasData] = await Promise.all([
-        respostaService.getByFormularioId(formularioId),
-        perguntaService.getByFormularioId(formularioId)
-      ]);
-      
-      const formulario = formularios.find(f => f.id === formularioId);
-      
-      if (!formulario) return;
-
-      // Criar respostas completas com dados relacionados
-      const respostasCompletas: RespostaCompleta[] = respostasData.map(resposta => {
-        const funcionario = funcionarios.find(f => f.id === resposta.funcionario_id);
-        const pergunta = perguntasData.find(p => p.id === resposta.pergunta_id);
+    const loadRespostasFormulario = async () => {
+      setLoading(true);
+      try {
+        const [respostasData, perguntasData] = await Promise.all([
+          respostaService.getByFormularioId(formularioSelecionado),
+          perguntaService.getByFormularioId(formularioSelecionado)
+        ]);
         
-        return {
-          ...resposta,
-          formulario,
-          funcionario: funcionario!,
-          pergunta: pergunta!
-        };
-      }).filter(r => r.funcionario && r.pergunta);
-
-      setRespostas(respostasCompletas);
-
-      // Criar status dos funcionários
-      const funcionariosComStatus: FuncionarioStatus[] = funcionarios.map(funcionario => {
-        const respondeu = respostasData.some(r => r.funcionario_id === funcionario.id);
-        const primeiraResposta = respostasData.find(r => r.funcionario_id === funcionario.id);
+        const formulario = formularios.find(f => f.id === formularioSelecionado);
         
-        return {
-          id: funcionario.id,
-          nome: funcionario.nome,
-          email: funcionario.email,
-          cargo: funcionario.cargo,
-          status: respondeu ? 'respondeu' : 'nao_respondeu',
-          dataResposta: primeiraResposta?.created_at
-        };
-      });
+        if (!formulario) return;
 
-      setFuncionariosStatus(funcionariosComStatus);
+        // Create complete responses with related data
+        const respostasCompletas: RespostaCompleta[] = respostasData.map(resposta => {
+          const funcionario = funcionarios.find(f => f.id === resposta.funcionario_id);
+          const pergunta = perguntasData.find(p => p.id === resposta.pergunta_id);
+          
+          return {
+            ...resposta,
+            formulario,
+            funcionario: funcionario!,
+            pergunta: pergunta!
+          };
+        }).filter(r => r.funcionario && r.pergunta);
 
-    } catch (error: any) {
-      toast.error('Erro ao carregar respostas');
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  }, [formularios, funcionarios, setLoading]);
+        setRespostas(respostasCompletas);
 
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+        // Create employee status
+        const funcionariosComStatus: FuncionarioStatus[] = funcionarios.map(funcionario => {
+          const respondeu = respostasData.some(r => r.funcionario_id === funcionario.id);
+          const primeiraResposta = respostasData.find(r => r.funcionario_id === funcionario.id);
+          
+          return {
+            id: funcionario.id,
+            nome: funcionario.nome,
+            email: funcionario.email,
+            cargo: funcionario.cargo,
+            status: respondeu ? 'respondeu' : 'nao_respondeu',
+            dataResposta: primeiraResposta?.created_at
+          };
+        });
 
-  useEffect(() => {
-    if (!isInitialLoading && formularioSelecionado !== 'todos') {
-      loadRespostasFormulario(formularioSelecionado);
-    }
-  }, [formularioSelecionado, loadRespostasFormulario, isInitialLoading]);
+        setFuncionariosStatus(funcionariosComStatus);
+
+      } catch (error: any) {
+        toast.error('Erro ao carregar respostas');
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRespostasFormulario();
+  }, [formularioSelecionado, formularios, funcionarios, setLoading, isInitialLoading]);
 
   const filteredRespostas = respostas.filter(resposta => {
     const matchesStatus = filtroStatus === 'todos' || 
@@ -378,7 +378,7 @@ export default function ControleRespostas() {
                     <p className="text-gray-600">Nenhuma resposta encontrada</p>
                   </div>
                 ) : (
-                  // Agrupar respostas por funcionário
+                  // Group responses by employee
                   Object.values(
                     filteredRespostas.reduce((acc, resposta) => {
                       const funcionarioId = resposta.funcionario_id;

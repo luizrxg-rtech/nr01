@@ -58,67 +58,63 @@ export default function DashboardResultados() {
   const { user, empresaId } = useAuth()
   const { setLoading } = useLoading()
 
-  // Memoize the initial data loading
-  const loadInitialData = useCallback(async () => {
+  // Load initial data
+  useEffect(() => {
     if (!user || !empresaId) return
 
-    setIsInitialLoading(true)
-    setLoading(true)
+    const loadInitialData = async () => {
+      setIsInitialLoading(true)
+      setLoading(true)
 
-    try {
-      const [funcionariosData, formulariosData] = await Promise.all([
-        funcionarioService.getByEmpresaId(empresaId),
-        formularioService.getByEmpresaId(empresaId)
-      ])
+      try {
+        const [funcionariosData, formulariosData] = await Promise.all([
+          funcionarioService.getByEmpresaId(empresaId),
+          formularioService.getByEmpresaId(empresaId)
+        ])
 
-      setFuncionarios(funcionariosData || [])
-      setFormularios(formulariosData || [])
-      
-      if (formulariosData && formulariosData.length > 0) {
-        setFormularioSelecionado(formulariosData[0])
+        setFuncionarios(funcionariosData || [])
+        setFormularios(formulariosData || [])
+        
+        if (formulariosData && formulariosData.length > 0) {
+          setFormularioSelecionado(formulariosData[0])
+        }
+      } catch (error: any) {
+        toast.error("Erro ao carregar dados iniciais")
+        console.error(error)
+      } finally {
+        setIsInitialLoading(false)
+        setLoading(false)
       }
-    } catch (error: any) {
-      toast.error("Erro ao carregar dados iniciais")
-      console.error(error)
-    } finally {
-      setIsInitialLoading(false)
-      setLoading(false)
     }
+
+    loadInitialData()
   }, [user, empresaId, setLoading])
 
-  // Load form-specific data
-  const loadFormularioData = useCallback(async (formulario: Formulario) => {
-    if (!user || !formulario) return
-
-    setLoading(true)
-
-    try {
-      const [perguntasData, respostasData] = await Promise.all([
-        perguntaService.getByFormularioId(formulario.id),
-        respostaService.getByFormularioId(formulario.id)
-      ])
-
-      setPerguntas(perguntasData || [])
-      setRespostas(respostasData || [])
-    } catch (error: any) {
-      toast.error("Erro ao carregar dados do formulário")
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }, [user, setLoading])
-
-  // Initial load
+  // Load form-specific data when form selection changes
   useEffect(() => {
-    loadInitialData()
-  }, [loadInitialData])
+    if (!user || !formularioSelecionado || isInitialLoading) return
 
-  // Load form data when selection changes
-  useEffect(() => {
-    if (formularioSelecionado && !isInitialLoading) {
-      loadFormularioData(formularioSelecionado)
+    const loadFormularioData = async () => {
+      setLoading(true)
+
+      try {
+        const [perguntasData, respostasData] = await Promise.all([
+          perguntaService.getByFormularioId(formularioSelecionado.id),
+          respostaService.getByFormularioId(formularioSelecionado.id)
+        ])
+
+        setPerguntas(perguntasData || [])
+        setRespostas(respostasData || [])
+      } catch (error: any) {
+        toast.error("Erro ao carregar dados do formulário")
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [formularioSelecionado, loadFormularioData, isInitialLoading])
+
+    loadFormularioData()
+  }, [formularioSelecionado, user, setLoading, isInitialLoading])
 
   // Calculate metrics when data changes
   useEffect(() => {

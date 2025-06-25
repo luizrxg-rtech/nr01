@@ -22,21 +22,15 @@ import {toast} from 'sonner';
 import { Formulario } from '@/lib/supabase';
 
 export default function GerenciarFormularios() {
-  const [formularios, setFormularios] = useState<Formulario[]>([]);
-
   const [showForm, setShowForm] = useState(false);
   const [editingForm, setEditingForm] = useState<Formulario | null>(null);
   const [formulario, setFormulario] = useState<Formulario | null>(null);
+  const [formularios, setFormularios] = useState<Formulario[]>([]);
+  const [perguntas, setPerguntas] = useState<Pergunta[]>([]);
 
   const handleCreateForm = () => {
     setShowForm(true);
     setEditingForm(null);
-    setFormulario({
-      id: string;
-      empresa_id: string;
-      nome: string;
-      status: 'ativo' | 'inativo'
-    })
   };
 
   const handleEditForm = () => {
@@ -63,12 +57,12 @@ export default function GerenciarFormularios() {
     setEditingForm(null);
   };
 
-  const handleDeleteForm = (id: number) => {
+  const handleDeleteForm = (id: string) => {
     setFormularios(prev => prev.filter(f => f.id !== id));
     toast.success('Formulário excluído com sucesso!');
   };
 
-  const handleToggleStatus = (id: number) => {
+  const handleToggleStatus = (id: string) => {
     setFormularios(prev => prev.map(f =>
       f.id === id
         ? {...f, status: f.status === 'ativo' ? 'inativo' : 'ativo'}

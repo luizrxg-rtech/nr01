@@ -80,62 +80,68 @@ export default function ControleRespostas() {
     checkConnection();
   }, []);
 
-  // Load initial data with retry logic
-  const loadInitialData = useCallback(async (isRetry = false) => {
+  // Load initial data - only depends on user and empresaId
+  useEffect(() => {
     if (!user || !empresaId) return;
 
-    if (!isRetry) {
+    let isMounted = true;
+
+    const loadInitialData = async () => {
       setIsInitialLoading(true);
-    }
-    setLoading(true);
-    setConnectionError(null);
+      setLoading(true);
+      setConnectionError(null);
 
-    try {
-      console.log('Loading initial data for empresa:', empresaId);
-      
-      const [formulariosData, funcionariosData] = await Promise.all([
-        formularioService.getByEmpresaId(empresaId),
-        funcionarioService.getByEmpresaId(empresaId)
-      ]);
+      try {
+        console.log('Loading initial data for empresa:', empresaId);
+        
+        const [formulariosData, funcionariosData] = await Promise.all([
+          formularioService.getByEmpresaId(empresaId),
+          funcionarioService.getByEmpresaId(empresaId)
+        ]);
 
-      console.log('Data loaded successfully:', {
-        formularios: formulariosData?.length || 0,
-        funcionarios: funcionariosData?.length || 0
-      });
+        if (!isMounted) return;
 
-      setFormularios(formulariosData || []);
-      setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
-      setRetryCount(0);
-      
-      if (isRetry) {
-        toast.success('Dados carregados com sucesso!');
-      }
-    } catch (error: any) {
-      console.error('Error loading initial data:', error);
-      
-      const errorMessage = error.message || 'Erro ao carregar dados';
-      setConnectionError(errorMessage);
-      
-      if (!isRetry) {
+        console.log('Data loaded successfully:', {
+          formularios: formulariosData?.length || 0,
+          funcionarios: funcionariosData?.length || 0
+        });
+
+        setFormularios(formulariosData || []);
+        setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
+        setRetryCount(0);
+        
+      } catch (error: any) {
+        if (!isMounted) return;
+        
+        console.error('Error loading initial data:', error);
+        
+        const errorMessage = error.message || 'Erro ao carregar dados';
+        setConnectionError(errorMessage);
         toast.error(errorMessage);
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+          setLoading(false);
+        }
       }
-    } finally {
-      setIsInitialLoading(false);
-      setLoading(false);
-    }
-  }, [user, empresaId, setLoading]);
+    };
 
-  useEffect(() => {
     loadInitialData();
-  }, [loadInitialData]);
 
-  // Load responses when form is selected
+    return () => {
+      isMounted = false;
+    };
+  }, [user, empresaId]); // Only these dependencies
+
+  // Load responses when form is selected - separate effect
   useEffect(() => {
-    if (formularioSelecionado === 'todos' || isInitialLoading || connectionError) {
+    if (formularioSelecionado === 'todos' || isInitialLoading || connectionError || formularios.length === 0 || funcionarios.length === 0) {
       setRespostas([]);
       setFuncionariosStatus([]);
       return;
     }
+
+    let isMounted = true;
 
     const loadRespostasFormulario = async () => {
       setLoading(true);
@@ -144,6 +150,8 @@ export default function ControleRespostas() {
           respostaService.getByFormularioId(formularioSelecionado),
           perguntaService.getByFormularioId(formularioSelecionado)
         ]);
+
+        if (!isMounted) return;
         
         const formulario = formularios.find(f => f.id === formularioSelecionado);
         
@@ -182,21 +190,32 @@ export default function ControleRespostas() {
         setFuncionariosStatus(funcionariosComStatus);
 
       } catch (error: any) {
+        if (!isMounted) return;
+        
         const errorMessage = error.message || 'Erro ao carregar respostas';
         toast.error(errorMessage);
         console.error(error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadRespostasFormulario();
-  }, [formularioSelecionado, formularios, funcionarios, setLoading, isInitialLoading, connectionError]);
 
-  const handleRetry = () => {
+    return () => {
+      isMounted = false;
+    };
+  }, [formularioSelecionado, formularios, funcionarios]); // Removed setLoading from dependencies
+
+  const handleRetry = useCallback(() => {
     setRetryCount(prev => prev + 1);
-    loadInitialData(true);
-  };
+    // Force reload by clearing data and triggering useEffect
+    setFormularios([]);
+    setFuncionarios([]);
+    setConnectionError(null);
+  }, []);
 
   const filteredRespostas = respostas.filter(resposta => {
     const matchesStatus = filtroStatus === 'todos' || 

@@ -22,13 +22,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loadingAuth, setLoadingAuth] = useState(true)
 
   useEffect(() => {
-    // Verificar usuário atual
+    // Check current user
     auth.getCurrentUser().then((user) => {
       setUser(user)
       setLoadingAuth(false)
     })
 
-    // Escutar mudanças de autenticação
+    // Listen to auth changes
     const { data: { subscription } } = auth.onAuthStateChange((user) => {
       setUser(user)
       setLoadingAuth(false)
@@ -38,27 +38,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (user) {
+    if (user && !empresaId) {
+      let isMounted = true;
+      
+      const getEmpresaId = async () => {
+        setLoadingAuth(true)
+
+        try {
+          const id = await empresaService.getEmpresaIdByUserId(user.id)
+          if (isMounted && id) {
+            setEmpresaId(id)
+          }
+        } catch (error) {
+          console.log(error)
+        } finally {
+          if (isMounted) {
+            setLoadingAuth(false)
+          }
+        }
+      }
+
       getEmpresaId()
-        .then((id) => {
-          if (id) setEmpresaId(id)
-        })
+
+      return () => {
+        isMounted = false;
+      };
     }
-  }, [user])
-
-  const getEmpresaId = async () => {
-    if (!user) return
-
-    setLoadingAuth(true)
-
-    try {
-      return await empresaService.getEmpresaIdByUserId(user.id)
-    } catch (error) {
-      console.log(error)
-    } finally {
-      setLoadingAuth(false)
-    }
-  }
+  }, [user, empresaId])
 
   const signIn = async (email: string, password: string) => {
     await auth.signIn(email, password)

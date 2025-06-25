@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState, useCallback, useMemo} from 'react';
+import {useEffect, useState, useMemo} from 'react';
 import {motion} from 'framer-motion';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
@@ -58,9 +58,11 @@ export default function DashboardResultados() {
   const { user, empresaId } = useAuth()
   const { setLoading } = useLoading()
 
-  // Load initial data
+  // Load initial data - only depends on user and empresaId
   useEffect(() => {
     if (!user || !empresaId) return
+
+    let isMounted = true;
 
     const loadInitialData = async () => {
       setIsInitialLoading(true)
@@ -72,6 +74,8 @@ export default function DashboardResultados() {
           formularioService.getByEmpresaId(empresaId)
         ])
 
+        if (!isMounted) return;
+
         setFuncionarios(funcionariosData || [])
         setFormularios(formulariosData || [])
         
@@ -79,20 +83,29 @@ export default function DashboardResultados() {
           setFormularioSelecionado(formulariosData[0])
         }
       } catch (error: any) {
+        if (!isMounted) return;
         toast.error("Erro ao carregar dados iniciais")
         console.error(error)
       } finally {
-        setIsInitialLoading(false)
-        setLoading(false)
+        if (isMounted) {
+          setIsInitialLoading(false)
+          setLoading(false)
+        }
       }
     }
 
     loadInitialData()
-  }, [user, empresaId, setLoading])
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, empresaId]) // Only these dependencies
 
   // Load form-specific data when form selection changes
   useEffect(() => {
     if (!user || !formularioSelecionado || isInitialLoading) return
+
+    let isMounted = true;
 
     const loadFormularioData = async () => {
       setLoading(true)
@@ -103,18 +116,27 @@ export default function DashboardResultados() {
           respostaService.getByFormularioId(formularioSelecionado.id)
         ])
 
+        if (!isMounted) return;
+
         setPerguntas(perguntasData || [])
         setRespostas(respostasData || [])
       } catch (error: any) {
+        if (!isMounted) return;
         toast.error("Erro ao carregar dados do formulário")
         console.error(error)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
     loadFormularioData()
-  }, [formularioSelecionado, user, setLoading, isInitialLoading])
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formularioSelecionado, user]) // Removed setLoading from dependencies
 
   // Calculate metrics when data changes
   useEffect(() => {
@@ -125,7 +147,7 @@ export default function DashboardResultados() {
     }
   }, [respostas, perguntas])
 
-  const calculaMediasRespostas = useCallback(() => {
+  const calculaMediasRespostas = () => {
     const medias: Media[] = perguntas.map(pergunta => {
       const respostasPergunta = respostas.filter(r => r.pergunta_id === pergunta.id)
       const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
@@ -137,9 +159,9 @@ export default function DashboardResultados() {
     })
 
     setMediasRespostas(medias)
-  }, [perguntas, respostas])
+  }
 
-  const calculaMediaGeral = useCallback(() => {
+  const calculaMediaGeral = () => {
     if (respostas.length === 0) {
       setMediaGeral(0)
       return
@@ -147,9 +169,9 @@ export default function DashboardResultados() {
 
     const total = respostas.reduce((sum, resposta) => sum + resposta.valor, 0)
     setMediaGeral(total / respostas.length)
-  }, [respostas])
+  }
 
-  const calculaDistribuicoes = useCallback(() => {
+  const calculaDistribuicoes = () => {
     const lPerguntasComDistribuicoes: PerguntasComDistribuicao[] = perguntas.map(pergunta => {
       const distribuicoes: Distribuicao[] = [
         {valor: 1, quantidade: 0},
@@ -174,13 +196,13 @@ export default function DashboardResultados() {
     })
 
     setPerguntasComDistribuicoes(lPerguntasComDistribuicoes)
-  }, [perguntas, respostas])
+  }
 
-  const findFormularioByName = useCallback((nome: string) => {
+  const findFormularioByName = (nome: string) => {
     return formularios?.find(f =>
       f.nome.toLowerCase().includes(nome?.toLowerCase() || '')
     ) || formularios[0]
-  }, [formularios])
+  }
 
   const chartData = useMemo(() => {
     return perguntas?.map((p, index) => ({
@@ -208,18 +230,18 @@ export default function DashboardResultados() {
 
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981']
 
-  const getStatusColor = useCallback((media: number) => {
+  const getStatusColor = (media: number) => {
     if (media >= 4.5) return 'text-green-600'
     if (media >= 3.5) return 'text-yellow-600'
     return 'text-red-600'
-  }, [])
+  }
 
-  const getStatusLabel = useCallback((media: number) => {
+  const getStatusLabel = (media: number) => {
     if (media >= 4.5) return 'Excelente'
     if (media >= 3.5) return 'Bom'
     if (media >= 2.5) return 'Regular'
     return 'Ruim'
-  }, [])
+  }
 
   if (formularios.length === 0 && !isInitialLoading) {
     return (

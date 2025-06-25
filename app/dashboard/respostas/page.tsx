@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback} from 'react';
 import {motion} from 'framer-motion';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Button} from '@/components/ui/button';
@@ -56,58 +56,48 @@ export default function ControleRespostas() {
   const [respostas, setRespostas] = useState<RespostaCompleta[]>([]);
   const [funcionariosStatus, setFuncionariosStatus] = useState<FuncionarioStatus[]>([]);
   const [formularioSelecionado, setFormularioSelecionado] = useState<string>('todos');
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const {user, empresaId} = useAuth();
   const {setLoading} = useLoading();
 
-  useEffect(() => {
-    if (user && empresaId) {
-      loadData();
-    }
-  }, [user, empresaId]);
+  const loadInitialData = useCallback(async () => {
+    if (!user || !empresaId) return;
 
-  useEffect(() => {
-    if (formularioSelecionado !== 'todos') {
-      loadRespostasFormulario(formularioSelecionado);
-    } else {
-      setRespostas([]);
-      setFuncionariosStatus([]);
-    }
-  }, [formularioSelecionado, funcionarios]);
-
-  const loadData = async () => {
-    if (!empresaId) return;
-
+    setIsInitialLoading(true);
     setLoading(true);
+
     try {
-      // Carregar formulários
-      const formulariosData = await formularioService.getByEmpresaId(empresaId);
-      setFormularios(formulariosData);
+      const [formulariosData, funcionariosData] = await Promise.all([
+        formularioService.getByEmpresaId(empresaId),
+        funcionarioService.getByEmpresaId(empresaId)
+      ]);
 
-      // Carregar funcionários
-      const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
-      setFuncionarios(funcionariosData.filter(f => f.status === 'ativo'));
-
+      setFormularios(formulariosData || []);
+      setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
     } catch (error: any) {
       toast.error('Erro ao carregar dados');
       console.error(error);
     } finally {
+      setIsInitialLoading(false);
       setLoading(false);
     }
-  };
+  }, [user, empresaId, setLoading]);
 
-  const loadRespostasFormulario = async (formularioId: string) => {
-    if (!formularioId || formularioId === 'todos') return;
+  const loadRespostasFormulario = useCallback(async (formularioId: string) => {
+    if (!formularioId || formularioId === 'todos') {
+      setRespostas([]);
+      setFuncionariosStatus([]);
+      return;
+    }
 
     setLoading(true);
     try {
-      // Carregar respostas do formulário
-      const respostasData = await respostaService.getByFormularioId(formularioId);
+      const [respostasData, perguntasData] = await Promise.all([
+        respostaService.getByFormularioId(formularioId),
+        perguntaService.getByFormularioId(formularioId)
+      ]);
       
-      // Carregar perguntas do formulário
-      const perguntasData = await perguntaService.getByFormularioId(formularioId);
-      
-      // Encontrar o formulário
       const formulario = formularios.find(f => f.id === formularioId);
       
       if (!formulario) return;
@@ -150,7 +140,17 @@ export default function ControleRespostas() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formularios, funcionarios, setLoading]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    if (!isInitialLoading && formularioSelecionado !== 'todos') {
+      loadRespostasFormulario(formularioSelecionado);
+    }
+  }, [formularioSelecionado, loadRespostasFormulario, isInitialLoading]);
 
   const filteredRespostas = respostas.filter(resposta => {
     const matchesStatus = filtroStatus === 'todos' || 
@@ -201,7 +201,6 @@ export default function ControleRespostas() {
   };
 
   const handleExportData = () => {
-    // Mock export functionality
     toast.success('Funcionalidade de exportação será implementada em breve');
   };
 

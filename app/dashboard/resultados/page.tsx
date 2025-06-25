@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useCallback, useMemo} from 'react';
 import {motion} from 'framer-motion';
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
@@ -10,7 +10,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
   Pie,
@@ -46,151 +45,117 @@ interface PerguntasComDistribuicao {
 }
 
 export default function DashboardResultados() {
-  const [funcionarios, setFuncionarios] = useState<Funcionario[] | []>([])
-  const [formularios, setFormularios] = useState<Formulario[] | []>([])
-  const [perguntas, setPerguntas] = useState<Pergunta[] | []>([])
-  const [respostas, setRespostas] = useState<Resposta[] | []>([])
-  const [mediasRespostas, setMediasRespostas] = useState<Media[] | []>([])
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
+  const [formularios, setFormularios] = useState<Formulario[]>([])
+  const [perguntas, setPerguntas] = useState<Pergunta[]>([])
+  const [respostas, setRespostas] = useState<Resposta[]>([])
+  const [mediasRespostas, setMediasRespostas] = useState<Media[]>([])
   const [mediaGeral, setMediaGeral] = useState<number | null>(null)
-  const [perguntasComDistribuicoes, setPerguntasComDistribuicoes] = useState<PerguntasComDistribuicao[] | []>([])
+  const [perguntasComDistribuicoes, setPerguntasComDistribuicoes] = useState<PerguntasComDistribuicao[]>([])
   const [formularioSelecionado, setFormularioSelecionado] = useState<Formulario | null>(null)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   const { user, empresaId } = useAuth()
   const { setLoading } = useLoading()
 
-  useEffect(() => {
-    if (user && empresaId) {
-      loadFuncionarios()
-        .then((data) => {
-          if (data) setFuncionarios(data)
-        })
-      loadFormularios()
-        .then((data) => {
-          if (data) {
-            setFormularios(data)
-            setFormularioSelecionado(data[0])
-          }
-        })
-    }
-  }, [user, empresaId])
+  // Memoize the initial data loading
+  const loadInitialData = useCallback(async () => {
+    if (!user || !empresaId) return
 
-  useEffect(() => {
-    if (formularioSelecionado) {
-      loadRespostas()
-        .then((data) => {
-          if (data) setRespostas(data)
-        })
-      loadPerguntas()
-        .then((data) => {
-          if (data) setPerguntas(data)
-        })
-    }
-  }, [formularioSelecionado])
+    setIsInitialLoading(true)
+    setLoading(true)
 
+    try {
+      const [funcionariosData, formulariosData] = await Promise.all([
+        funcionarioService.getByEmpresaId(empresaId),
+        formularioService.getByEmpresaId(empresaId)
+      ])
+
+      setFuncionarios(funcionariosData || [])
+      setFormularios(formulariosData || [])
+      
+      if (formulariosData && formulariosData.length > 0) {
+        setFormularioSelecionado(formulariosData[0])
+      }
+    } catch (error: any) {
+      toast.error("Erro ao carregar dados iniciais")
+      console.error(error)
+    } finally {
+      setIsInitialLoading(false)
+      setLoading(false)
+    }
+  }, [user, empresaId, setLoading])
+
+  // Load form-specific data
+  const loadFormularioData = useCallback(async (formulario: Formulario) => {
+    if (!user || !formulario) return
+
+    setLoading(true)
+
+    try {
+      const [perguntasData, respostasData] = await Promise.all([
+        perguntaService.getByFormularioId(formulario.id),
+        respostaService.getByFormularioId(formulario.id)
+      ])
+
+      setPerguntas(perguntasData || [])
+      setRespostas(respostasData || [])
+    } catch (error: any) {
+      toast.error("Erro ao carregar dados do formulário")
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
+  }, [user, setLoading])
+
+  // Initial load
   useEffect(() => {
-    if (respostas) {
+    loadInitialData()
+  }, [loadInitialData])
+
+  // Load form data when selection changes
+  useEffect(() => {
+    if (formularioSelecionado && !isInitialLoading) {
+      loadFormularioData(formularioSelecionado)
+    }
+  }, [formularioSelecionado, loadFormularioData, isInitialLoading])
+
+  // Calculate metrics when data changes
+  useEffect(() => {
+    if (respostas.length > 0 && perguntas.length > 0) {
       calculaMediasRespostas()
       calculaMediaGeral()
       calculaDistribuicoes()
     }
-  }, [respostas]);
+  }, [respostas, perguntas])
 
-  const loadFormularios = async () => {
-    if (!user || !empresaId) return
-
-    setLoading(true)
-
-    try {
-      return await formularioService.getByEmpresaId(empresaId)
-    } catch (error: any) {
-      toast.error("Erro ao carregar formulário")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadPerguntas = async () => {
-    if (!user || !formularioSelecionado) return
-
-    setLoading(true)
-
-    if (formularioSelecionado) {
-      try {
-        return await perguntaService.getByFormularioId(formularioSelecionado.id)
-      } catch (error: any) {
-        toast.error("Erro ao carregar perguntas")
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  const loadRespostas = async () => {
-    if (!user || !formularioSelecionado) return
-
-    setLoading(true)
-
-    if (formularioSelecionado) {
-      try {
-        return await respostaService.getByFormularioId(formularioSelecionado.id)
-      } catch (error: any) {
-        toast.error("Erro ao carregar respostas")
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
-
-  const loadFuncionarios = async () => {
-    if (!user || !empresaId) return
-
-    setLoading(true)
-
-    try {
-      return await funcionarioService.getByEmpresaId(empresaId)
-    } catch (error: any) {
-      toast.error("Erro ao carregar funcionários")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const calculaMediasRespostas = () => {
-    let medias: Media[] = []
-
-    perguntas.forEach((pergunta, index) => {
-      let total: number = 0
-
-      respostas.forEach((resposta) => {
-        if (resposta.pergunta_id === pergunta.id) {
-          total += resposta.valor
-        }
-      })
-
-      medias.push({
+  const calculaMediasRespostas = useCallback(() => {
+    const medias: Media[] = perguntas.map(pergunta => {
+      const respostasPergunta = respostas.filter(r => r.pergunta_id === pergunta.id)
+      const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
+      
+      return {
         idPergunta: pergunta.id,
-        valor: total / respostas.length
-      })
+        valor: respostasPergunta.length > 0 ? total / respostasPergunta.length : 0
+      }
     })
 
     setMediasRespostas(medias)
-  }
+  }, [perguntas, respostas])
 
-  const calculaMediaGeral = () => {
-    let total: number = 0
+  const calculaMediaGeral = useCallback(() => {
+    if (respostas.length === 0) {
+      setMediaGeral(0)
+      return
+    }
 
-    respostas.forEach((resposta) => {
-      total += resposta.valor
-    })
-
+    const total = respostas.reduce((sum, resposta) => sum + resposta.valor, 0)
     setMediaGeral(total / respostas.length)
-  }
+  }, [respostas])
 
-  const calculaDistribuicoes = () => {
-    let lPerguntasComDistribuicoes: PerguntasComDistribuicao[] = []
-
-    perguntas.forEach((pergunta, index) => {
-      let distribuicoes: Distribuicao[] = [
+  const calculaDistribuicoes = useCallback(() => {
+    const lPerguntasComDistribuicoes: PerguntasComDistribuicao[] = perguntas.map(pergunta => {
+      const distribuicoes: Distribuicao[] = [
         {valor: 1, quantidade: 0},
         {valor: 2, quantidade: 0},
         {valor: 3, quantidade: 0},
@@ -198,418 +163,70 @@ export default function DashboardResultados() {
         {valor: 5, quantidade: 0},
       ]
 
-      respostas.forEach((resposta) => {
-        distribuicoes[resposta.valor - 1].quantidade += 1
-      })
+      respostas
+        .filter(r => r.pergunta_id === pergunta.id)
+        .forEach(resposta => {
+          if (resposta.valor >= 1 && resposta.valor <= 5) {
+            distribuicoes[resposta.valor - 1].quantidade += 1
+          }
+        })
 
-      lPerguntasComDistribuicoes.push(
-        {
-          idPergunta: pergunta.id,
-          distribuicoes: distribuicoes
-        }
-      )
+      return {
+        idPergunta: pergunta.id,
+        distribuicoes
+      }
     })
 
     setPerguntasComDistribuicoes(lPerguntasComDistribuicoes)
-  }
+  }, [perguntas, respostas])
 
-  const findFormularioByName = (nome: string) => {
+  const findFormularioByName = useCallback((nome: string) => {
     return formularios?.find(f =>
-      f.nome.toLowerCase().includes(nome || '')
+      f.nome.toLowerCase().includes(nome?.toLowerCase() || '')
     ) || formularios[0]
-  }
+  }, [formularios])
 
-  const chartData = perguntas?.map((p, index) => ({
-    pergunta: p.texto.substring(0, 30) + '...',
-    media: mediasRespostas[index],
-    perguntaCompleta: p.texto
-  }))
+  const chartData = useMemo(() => {
+    return perguntas?.map((p, index) => ({
+      pergunta: p.texto.substring(0, 30) + '...',
+      media: mediasRespostas[index]?.valor || 0,
+      perguntaCompleta: p.texto
+    })) || []
+  }, [perguntas, mediasRespostas])
 
-  const distribuicaoData = perguntasComDistribuicoes[0]?.distribuicoes.map(d => ({
-    name: `${d.valor} - ${['Nunca', 'Raramente', 'Às vezes', 'Frequentemente', 'Sempre'][d.valor - 1]}`,
-    value: d.quantidade,
-    percentage: Math.round((d.quantidade / respostas.length) * 100)
-  })) || []
+  const distribuicaoData = useMemo(() => {
+    if (perguntasComDistribuicoes.length === 0 || respostas.length === 0) return []
+    
+    return perguntasComDistribuicoes[0]?.distribuicoes.map(d => ({
+      name: `${d.valor} - ${['Nunca', 'Raramente', 'Às vezes', 'Frequentemente', 'Sempre'][d.valor - 1]}`,
+      value: d.quantidade,
+      percentage: Math.round((d.quantidade / respostas.length) * 100)
+    })) || []
+  }, [perguntasComDistribuicoes, respostas])
 
-  const tendenciaData = [
+  const tendenciaData = useMemo(() => [
     {mes: 'Jan', satisfacao: 3.2, treinamento: 4.1},
     {mes: 'Fev', satisfacao: 3.5, treinamento: 4.2},
     {mes: 'Mar', satisfacao: 3.8, treinamento: 4.3},
-  ]
-
-  const radarData = perguntas.map((p, index) => ({
-    subject: p.texto.substring(0, 20) + '...',
-    value: mediasRespostas[index],
-    fullText: p.texto
-  }))
+  ], [])
 
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981']
 
-  const getStatusColor = (media: number) => {
+  const getStatusColor = useCallback((media: number) => {
     if (media >= 4.5) return 'text-green-600'
     if (media >= 3.5) return 'text-yellow-600'
     return 'text-red-600'
-  }
+  }, [])
 
-  const getStatusLabel = (media: number) => {
+  const getStatusLabel = useCallback((media: number) => {
     if (media >= 4.5) return 'Excelente'
     if (media >= 3.5) return 'Bom'
     if (media >= 2.5) return 'Regular'
     return 'Ruim'
-  }
+  }, [])
 
-  return (
-
-    formularios.length > 0 ?
-      <div className="space-y-8">
-        {/* Header */}
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          className="flex justify-between items-start"
-        >
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Dashboard de Resultados</h1>
-            <p className="text-gray-600">
-              Analise os resultados dos formulários com gráficos e métricas detalhadas.
-            </p>
-          </div>
-          <div className="flex space-x-3">
-            <Select
-              value={formularioSelecionado?.nome}
-              onValueChange={
-                (value) => setFormularioSelecionado(() => findFormularioByName(value))
-              }
-            >
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecione um formulário"/>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="satisfacao">Pesquisa de Satisfação - Q1 2024</SelectItem>
-                <SelectItem value="treinamento">Avaliação de Treinamento</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2"/>
-              Exportar Relatório
-            </Button>
-          </div>
-        </motion.div>
-
-        {/* Overview Cards */}
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.2}}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6"
-        >
-          <Card className="card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total de Respostas</p>
-                  <p className="text-2xl font-bold text-foreground">{respostas.length}</p>
-                </div>
-                <Users className="w-8 h-8 text-brand-blue"/>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Média Geral</p>
-                  <div className="flex items-center space-x-2">
-                    <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)}`}>
-                      {mediaGeral?.toFixed(1)}
-                    </p>
-                    <Badge
-                      variant="secondary"
-                      className={`${getStatusColor(mediaGeral || 0)} bg-opacity-10`}
-                    >
-                      {getStatusLabel(mediaGeral || 0)}
-                    </Badge>
-                  </div>
-                </div>
-                <Target className="w-8 h-8 text-brand-green"/>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Maior Pontuação</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1)}
-                  </p>
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-600"/>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="card">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total de Perguntas</p>
-                  <p className="text-2xl font-bold text-foreground">{perguntas.length}</p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-purple-600"/>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Bar Chart - Média por Pergunta */}
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.4}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Média por Pergunta</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={500}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3"/>
-                  <XAxis
-                    dataKey="pergunta"
-                    tick={{fontSize: 12}}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                  />
-                  <YAxis domain={[0, 5]}/>
-                  {/*<Tooltip*/}
-                  {/*  formatter={(value, name, props) => [*/}
-                  {/*    `${Number(value).toFixed(1)}`,*/}
-                  {/*    'Média'*/}
-                  {/*  ]}*/}
-                  {/*  labelFormatter={(label, payload) => {*/}
-                  {/*    const item = payload?.[0]?.payload*/}
-                  {/*    return item?.perguntaCompleta || label*/}
-                  {/*  }}*/}
-                  {/*/>*/}
-                  <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]}/>
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Line Chart - Tendência */}
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.8}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={500}>
-                <LineChart data={tendenciaData}>
-                  <CartesianGrid strokeDasharray="3 3"/>
-                  <XAxis dataKey="mes"/>
-                  <YAxis domain={[0, 5]}/>
-                  <Tooltip/>
-                  <Line
-                    type="monotone"
-                    dataKey="satisfacao"
-                    stroke="#73C24F"
-                    strokeWidth={3}
-                    name="Satisfação"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="treinamento"
-                    stroke="#337AC7"
-                    strokeWidth={3}
-                    name="Treinamento"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-          {/* Pie Chart - Distribuição de Respostas */}
-          {/*<motion.div*/}
-          {/*  initial={{opacity: 0, y: 20}}*/}
-          {/*  animate={{opacity: 1, y: 0}}*/}
-          {/*  transition={{delay: 0.6}}*/}
-          {/*>*/}
-          {/*  <Card className="card">*/}
-          {/*    <CardHeader>*/}
-          {/*      <CardTitle>Distribuição de Respostas</CardTitle>*/}
-          {/*      <p className="text-sm text-gray-600">*/}
-          {/*        {perguntas[0]?.pergunta}*/}
-          {/*      </p>*/}
-          {/*    </CardHeader>*/}
-          {/*    <CardContent>*/}
-          {/*      <ResponsiveContainer width="100%" height={300}>*/}
-          {/*        <PieChart>*/}
-          {/*          <Pie*/}
-          {/*            data={distribuicaoData}*/}
-          {/*            cx="50%"*/}
-          {/*            cy="50%"*/}
-          {/*            labelLine={false}*/}
-          {/*            label={({name, percentage}) => `${percentage}%`}*/}
-          {/*            outerRadius={80}*/}
-          {/*            fill="#8884d8"*/}
-          {/*            dataKey="value"*/}
-          {/*          >*/}
-          {/*            {distribuicaoData.map((entry, index) => (*/}
-          {/*              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]}/>*/}
-          {/*            ))}*/}
-          {/*          </Pie>*/}
-          {/*          <Tooltip formatter={(value) => [`${value} respostas`, 'Quantidade']}/>*/}
-          {/*        </PieChart>*/}
-          {/*      </ResponsiveContainer>*/}
-          {/*      <div className="mt-4 space-y-2">*/}
-          {/*        {distribuicaoData.map((item, index) => (*/}
-          {/*          <div key={index} className="flex items-center justify-between text-sm">*/}
-          {/*            <div className="flex items-center space-x-2">*/}
-          {/*              <div*/}
-          {/*                className="w-3 h-3 rounded-full"*/}
-          {/*                style={{backgroundColor: COLORS[index]}}*/}
-          {/*              />*/}
-          {/*              <span>{item.name}</span>*/}
-          {/*            </div>*/}
-          {/*            <span*/}
-          {/*              style={{color: COLORS[index]}}*/}
-          {/*              className="font-medium"*/}
-          {/*            >*/}
-          {/*            {item.value} ({item.percentage}%)*/}
-          {/*          </span>*/}
-          {/*          </div>*/}
-          {/*        ))}*/}
-          {/*      </div>*/}
-          {/*    </CardContent>*/}
-          {/*  </Card>*/}
-          {/*</motion.div>*/}
-
-          {/* Radar Chart - Visão Geral */}
-          {/*<motion.div*/}
-          {/*  initial={{ opacity: 0, y: 20 }}*/}
-          {/*  animate={{ opacity: 1, y: 0 }}*/}
-          {/*  transition={{ delay: 1.0 }}*/}
-          {/*  className="h-full"*/}
-          {/*>*/}
-          {/*  <Card className="card h-full">*/}
-          {/*    <CardHeader>*/}
-          {/*      <CardTitle>Análise Radar</CardTitle>*/}
-          {/*    </CardHeader>*/}
-          {/*    <CardContent>*/}
-          {/*      <ResponsiveContainer width="100%" height={400}>*/}
-          {/*        <RadarChart data={radarData}>*/}
-          {/*          <PolarGrid />*/}
-          {/*          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10 }} />*/}
-          {/*          <PolarRadiusAxis domain={[0, 5]} tick={false} />*/}
-          {/*          <Radar*/}
-          {/*            name="Pontuação"*/}
-          {/*            dataKey="value"*/}
-          {/*            stroke="#337AC7"*/}
-          {/*            fill="#337AC7"*/}
-          {/*            fillOpacity={0.3}*/}
-          {/*            strokeWidth={2}*/}
-          {/*          />*/}
-          {/*          <Tooltip*/}
-          {/*            formatter={(value, name, props) => [*/}
-          {/*              `${Number(value).toFixed(1)}`,*/}
-          {/*              'Pontuação'*/}
-          {/*            ]}*/}
-          {/*            labelFormatter={(label, payload) => {*/}
-          {/*              const item = payload?.[0]?.payload*/}
-          {/*              return item?.fullText || label*/}
-          {/*            }}*/}
-          {/*          />*/}
-          {/*        </RadarChart>*/}
-          {/*      </ResponsiveContainer>*/}
-          {/*    </CardContent>*/}
-          {/*  </Card>*/}
-          {/*</motion.div>*/}
-        </div>
-
-        {/* Detailed Results Table */}
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 1.2}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Resultados Detalhados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Pergunta</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Média</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-foreground">Distribuição</th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  {perguntas.map((pergunta, index) => (
-                    <motion.tr
-                      key={index}
-                      initial={{opacity: 0, y: 10}}
-                      animate={{opacity: 1, y: 0}}
-                      transition={{delay: 0.1 * index}}
-                      className="border-b border-gray-100 hover:bg-white/30 transition-colors"
-                    >
-                      <td className="py-3 px-4 text-foreground max-w-xs">
-                        {pergunta.texto}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`text-lg font-bold ${getStatusColor(mediasRespostas[index]?.valor)}`}>
-                          {mediasRespostas[index]?.valor.toFixed(1)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge
-                          variant="secondary"
-                          className={`${getStatusColor(mediasRespostas[index]?.valor)} bg-opacity-10`}
-                        >
-                          {getStatusLabel(mediasRespostas[index]?.valor)}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-1">
-                          {perguntasComDistribuicoes[index]?.distribuicoes.map((dist, index) => (
-                            <div
-                              key={index}
-                              className="w-8 h-6 rounded text-xs flex items-center justify-center text-white font-medium"
-                              style={{backgroundColor: COLORS[index]}}
-                            >
-                              {dist.quantidade}
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div> :
+  if (formularios.length === 0 && !isInitialLoading) {
+    return (
       <motion.div
         initial={{opacity: 0, scale: 0.9}}
         animate={{opacity: 1, scale: 1}}
@@ -632,5 +249,267 @@ export default function DashboardResultados() {
           </p>
         </Card>
       </motion.div>
+    )
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        className="flex justify-between items-start"
+      >
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-foreground">Dashboard de Resultados</h1>
+          <p className="text-gray-600">
+            Analise os resultados dos formulários com gráficos e métricas detalhadas.
+          </p>
+        </div>
+        <div className="flex space-x-3">
+          <Select
+            value={formularioSelecionado?.nome || ''}
+            onValueChange={(value) => {
+              const formulario = findFormularioByName(value)
+              setFormularioSelecionado(formulario)
+            }}
+          >
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Selecione um formulário"/>
+            </SelectTrigger>
+            <SelectContent>
+              {formularios.map((formulario) => (
+                <SelectItem key={formulario.id} value={formulario.nome}>
+                  {formulario.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2"/>
+            Exportar Relatório
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Overview Cards */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        transition={{delay: 0.2}}
+        className="grid grid-cols-1 md:grid-cols-4 gap-6"
+      >
+        <Card className="card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total de Respostas</p>
+                <p className="text-2xl font-bold text-foreground">{respostas.length}</p>
+              </div>
+              <Users className="w-8 h-8 text-brand-blue"/>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Média Geral</p>
+                <div className="flex items-center space-x-2">
+                  <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)}`}>
+                    {mediaGeral?.toFixed(1) || '0.0'}
+                  </p>
+                  <Badge
+                    variant="secondary"
+                    className={`${getStatusColor(mediaGeral || 0)} bg-opacity-10`}
+                  >
+                    {getStatusLabel(mediaGeral || 0)}
+                  </Badge>
+                </div>
+              </div>
+              <Target className="w-8 h-8 text-brand-green"/>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Maior Pontuação</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {mediasRespostas.length > 0 ? Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1) : '0.0'}
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-600"/>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Total de Perguntas</p>
+                <p className="text-2xl font-bold text-foreground">{perguntas.length}</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-purple-600"/>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Bar Chart - Média por Pergunta */}
+      {chartData.length > 0 && (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.4}}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Média por Pergunta</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={500}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3"/>
+                  <XAxis
+                    dataKey="pergunta"
+                    tick={{fontSize: 12}}
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                  />
+                  <YAxis domain={[0, 5]}/>
+                  <Tooltip
+                    formatter={(value: any) => [`${Number(value).toFixed(1)}`, 'Média']}
+                    labelFormatter={(label: any, payload: any) => {
+                      const item = payload?.[0]?.payload
+                      return item?.perguntaCompleta || label
+                    }}
+                  />
+                  <Bar dataKey="media" fill="#73C24F" radius={[4, 4, 0, 0]}/>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Line Chart - Tendência */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        transition={{delay: 0.8}}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle>Tendência ao Longo do Tempo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={500}>
+              <LineChart data={tendenciaData}>
+                <CartesianGrid strokeDasharray="3 3"/>
+                <XAxis dataKey="mes"/>
+                <YAxis domain={[0, 5]}/>
+                <Tooltip/>
+                <Line
+                  type="monotone"
+                  dataKey="satisfacao"
+                  stroke="#73C24F"
+                  strokeWidth={3}
+                  name="Satisfação"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="treinamento"
+                  stroke="#337AC7"
+                  strokeWidth={3}
+                  name="Treinamento"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Detailed Results Table */}
+      {perguntas.length > 0 && (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 1.2}}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Resultados Detalhados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Pergunta</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Média</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-foreground">Distribuição</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  {perguntas.map((pergunta, index) => {
+                    const media = mediasRespostas[index]?.valor || 0
+                    const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || []
+                    
+                    return (
+                      <motion.tr
+                        key={pergunta.id}
+                        initial={{opacity: 0, y: 10}}
+                        animate={{opacity: 1, y: 0}}
+                        transition={{delay: 0.1 * index}}
+                        className="border-b border-gray-100 hover:bg-white/30 transition-colors"
+                      >
+                        <td className="py-3 px-4 text-foreground max-w-xs">
+                          {pergunta.texto}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`text-lg font-bold ${getStatusColor(media)}`}>
+                            {media.toFixed(1)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant="secondary"
+                            className={`${getStatusColor(media)} bg-opacity-10`}
+                          >
+                            {getStatusLabel(media)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex space-x-1">
+                            {distribuicao.map((dist, distIndex) => (
+                              <div
+                                key={distIndex}
+                                className="w-8 h-6 rounded text-xs flex items-center justify-center text-white font-medium"
+                                style={{backgroundColor: COLORS[distIndex]}}
+                              >
+                                {dist.quantidade}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+    </div>
   )
 }

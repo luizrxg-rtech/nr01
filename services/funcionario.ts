@@ -23,8 +23,7 @@ export const funcionarioService = {
   },
 
   async getByEmpresaId(empresaId: string): Promise<Funcionario[]> {
-    console.log('Fetching funcionarios for empresa:', empresaId);
-    
+
     const { data, error } = await supabase
       .from('funcionarios')
       .select('*')
@@ -41,7 +40,6 @@ export const funcionarioService = {
       throw error;
     }
 
-    console.log('Funcionarios fetched successfully:', data?.length || 0);
     return data || [];
   },
 

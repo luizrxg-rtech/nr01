@@ -94,7 +94,6 @@ export default function ControleRespostas() {
       setConnectionError(null);
 
       try {
-        console.log('Loading initial data for empresa:', empresaId);
 
         const [formulariosData, funcionariosData] = await Promise.all([
           formularioService.getByEmpresaId(empresaId),
@@ -102,11 +101,6 @@ export default function ControleRespostas() {
         ]);
 
         if (!isMounted) return;
-
-        console.log('Data loaded successfully:', {
-          formularios: formulariosData?.length || 0,
-          funcionarios: funcionariosData?.length || 0
-        });
 
         setFormularios(formulariosData || []);
         setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);

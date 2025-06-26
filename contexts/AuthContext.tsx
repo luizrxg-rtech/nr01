@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setEmpresaId(id)
           }
         } catch (error) {
-          console.log(error)
+          console.error(error)
         } finally {
           if (isMounted) {
             setLoadingAuth(false)

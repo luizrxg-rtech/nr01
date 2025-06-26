@@ -67,14 +67,12 @@ export default function GerenciarFuncionarios() {
     let isMounted = true;
 
     const loadFuncionarios = async () => {
-      console.log('Starting to load funcionarios for empresa:', empresaId);
       setLoading(true);
       
       try {
         const funcionariosData = await funcionarioService.getByEmpresaId(empresaId);
         
         if (isMounted) {
-          console.log('Funcionarios loaded successfully:', funcionariosData.length);
           setFuncionarios(funcionariosData);
         }
       } catch (error: any) {
@@ -85,7 +83,6 @@ export default function GerenciarFuncionarios() {
       } finally {
         // Always set loading to false, regardless of success or error
         if (isMounted) {
-          console.log('Setting loading to false');
           setLoading(false);
         }
       }

@@ -221,7 +221,7 @@ export default function ControleRespostas() {
   }, []);
 
   // Get unique sectors for filter
-  const setoresUnicos = [...new Set(funcionarios.map(f => f.setor))].sort();
+  const setoresUnicos = Array.from(new Set(funcionarios.map(f => f.setor))).sort();
 
   const filteredRespostas = respostas.filter(resposta => {
     const matchesStatus = filtroStatus === 'todos' ||

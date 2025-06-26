@@ -141,7 +141,7 @@ export default function DashboardResultados() {
   }, [formularioSelecionado, user]) // Removed setLoading from dependencies
 
   // Get unique sectors for filter
-  const setoresUnicos = [...new Set(funcionarios.map(f => f.setor))].sort();
+  const setoresUnicos = Array.from(new Set(funcionarios.map(f => f.setor))).sort();
 
   // Filter responses based on selected funcionario and setor
   const respostasFiltradas = useMemo(() => {

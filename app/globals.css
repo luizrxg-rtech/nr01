@@ -78,7 +78,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-gradient-to-br from-slate-50 to-gray-100 text-foreground min-h-screen;
+    @apply bg-gray-100 text-foreground min-h-screen;
   }
 }
 

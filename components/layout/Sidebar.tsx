@@ -60,7 +60,7 @@ export default function Sidebar({children}: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+    <div className="min-h-screen bg-gray-100">
       {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -111,8 +111,9 @@ export default function Sidebar({children}: SidebarProps) {
         </div>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">
+        <main className="p-4 lg:p-8 relative">
           {children}
+          {loading && <LoadingScreen />}
         </main>
       </div>
     </div>

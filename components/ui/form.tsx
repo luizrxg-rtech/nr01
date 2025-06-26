@@ -103,7 +103,7 @@ const FormLabel = React.forwardRef<
 });
 FormLabel.displayName = 'FormLabel';
 
-const Gramed = React.forwardRef<
+const Granmed = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
 >(({ ...props }, ref) => {
@@ -124,7 +124,7 @@ const Gramed = React.forwardRef<
     />
   );
 });
-Gramed.displayName = 'Gramed';
+Granmed.displayName = 'Granmed';
 
 const FormDescription = React.forwardRef<
   HTMLParagraphElement,
@@ -172,7 +172,7 @@ export {
   Form,
   FormItem,
   FormLabel,
-  Gramed,
+  Granmed,
   FormDescription,
   FormMessage,
   FormField,

@@ -70,7 +70,7 @@ export default function AuthPage() {
               <FileText className="w-6 h-6 text-white" />
             </div>
             <CardTitle className="text-2xl font-bold bg-gradient-to-r from-brand-green to-brand-blue bg-clip-text text-transparent">
-              Gramed
+              Granmed
             </CardTitle>
             <p className="text-gray-600">
               {isLogin ? 'Entre em sua conta' : 'Crie sua conta'}

@@ -106,7 +106,7 @@ export default function Sidebar({children}: SidebarProps) {
             <div className="w-6 h-6 brand-gradient rounded flex items-center justify-center">
               <FileText className="w-4 h-4 text-white"/>
             </div>
-            <span className="font-semibold text-foreground">Gramed</span>
+            <span className="font-semibold text-foreground">Granmed</span>
           </div>
         </div>
 
@@ -138,7 +138,7 @@ function SidebarContent({pathname, onClose}: { pathname: string; onClose?: () =>
           </div>
           <h1
             className="text-xl font-bold bg-gradient-to-r from-brand-green to-brand-blue bg-clip-text text-transparent">
-            Gramed
+            Granmed
           </h1>
         </div>
         {onClose && (

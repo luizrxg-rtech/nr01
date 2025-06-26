@@ -20,13 +20,6 @@ export default function Dashboard() {
 
   const stats = [
     {
-      title: 'Empresas Cadastradas',
-      value: '12',
-      icon: Building2,
-      trend: '+2.5%',
-      color: 'from-brand-green to-green-400'
-    },
-    {
       title: 'Funcionários Ativos',
       value: '1,247',
       icon: Users,
@@ -130,7 +123,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6">
         {stats.map((stat, index) => (
           <motion.div
             key={stat.title}

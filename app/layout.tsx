@@ -11,7 +11,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Gramed',
+  title: 'Granmed',
   description: 'Sistema completo para gestão de formulários empresariais',
 };
 

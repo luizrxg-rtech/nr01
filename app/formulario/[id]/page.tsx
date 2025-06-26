@@ -446,7 +446,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"
+                          className="size-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"
                         />
                         Verificando se você já respondeu...
                       </p>
@@ -521,7 +521,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                          className="size-4 border-2 border-white border-t-transparent rounded-full"
                         />
                       ) : (
                         <Send className="w-4 h-4" />

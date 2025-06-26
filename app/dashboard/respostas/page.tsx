@@ -402,7 +402,7 @@ export default function ControleRespostas() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400"/>
+                <Search className="size-4 absolute left-3 top-3 text-gray-400"/>
                 <Input
                   placeholder="Buscar funcionário..."
                   value={searchTerm}
@@ -455,7 +455,7 @@ export default function ControleRespostas() {
                 variant="outline"
                 className="w-full"
               >
-                <Download className="w-4 h-4 mr-2"/>
+                <Download className="size-4 mr-2"/>
                 Exportar
               </Button>
             </div>

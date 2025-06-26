@@ -52,9 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error(error)
         } finally {
-          if (isMounted) {
-            setLoadingAuth(false)
-          }
+          setLoadingAuth(false)
         }
       }
 

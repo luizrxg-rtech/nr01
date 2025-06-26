@@ -325,10 +325,10 @@ export default function DashboardResultados() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2"/>
-            Exportar Relatório
-          </Button>
+          {/*<Button variant="outline">*/}
+          {/*  <Download className="size-4 mr-2"/>*/}
+          {/*  Exportar Relatório*/}
+          {/*</Button>*/}
         </div>
       </motion.div>
 

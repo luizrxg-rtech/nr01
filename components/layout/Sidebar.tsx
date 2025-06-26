@@ -104,7 +104,7 @@ export default function Sidebar({children}: SidebarProps) {
           </Button>
           <div className="flex items-center space-x-2">
             <div className="w-6 h-6 brand-gradient rounded flex items-center justify-center">
-              <FileText className="w-4 h-4 text-white"/>
+              <FileText className="size-4 text-white"/>
             </div>
             <span className="font-semibold text-foreground">Gramed</span>
           </div>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, User, CheckCircle } from 'lucide-react';
+import {Building2, User, CheckCircle, Edit} from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { empresaService } from '@/services/empresa';
@@ -205,6 +205,7 @@ export default function CadastroEmpresa() {
             variant={isEditing ? "outline" : "default"}
             className={!isEditing ? "brand-gradient hover:opacity-90 transition-opacity" : ""}
           >
+            <Edit className="size-4 mr-2" />
             {isEditing ? 'Cancelar' : 'Editar'}
           </Button>
         )}
@@ -429,7 +430,7 @@ export default function CadastroEmpresa() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
                   />
                 ) : null}
                 {isSubmitting ? 'Salvando...' : (empresa ? 'Atualizar Empresa' : 'Cadastrar Empresa')}

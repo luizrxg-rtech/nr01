@@ -205,7 +205,7 @@ export default function CadastroEmpresa() {
             variant={isEditing ? "outline" : "default"}
             className={!isEditing ? "brand-gradient hover:opacity-90 transition-opacity" : ""}
           >
-            <Edit className="size-4 mr-2" />
+            <Edit className="w-4 h-4 mr-2" />
             {isEditing ? 'Cancelar' : 'Editar'}
           </Button>
         )}
@@ -430,10 +430,10 @@ export default function CadastroEmpresa() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                   />
                 ) : null}
-                {isSubmitting ? 'Salvando...' : (empresa ? 'Atualizar Empresa' : 'Cadastrar Empresa')}
+                {isSubmitting ? 'Salvando' : (empresa ? 'Atualizar Empresa' : 'Cadastrar Empresa')}
               </Button>
             </div>
           )}

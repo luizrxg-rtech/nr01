@@ -507,7 +507,7 @@ export default function GerenciarFuncionarios() {
           onClick={handleAddFuncionario}
           className="brand-gradient hover:opacity-90 transition-opacity"
         >
-          <Plus className="size-4 mr-2" />
+          <Plus className="w-4 h-4 mr-2" />
           Novo Funcionário
         </Button>
       </motion.div>
@@ -568,7 +568,7 @@ export default function GerenciarFuncionarios() {
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="size-4 border-2 border-brand-blue border-t-transparent rounded-full"
+                      className="w-4 h-4 border-2 border-brand-blue border-t-transparent rounded-full"
                     />
                     <span>Analisando planilha...</span>
                   </motion.div>
@@ -585,10 +585,10 @@ export default function GerenciarFuncionarios() {
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                          className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                         />
                       ) : (
-                        <FileCheck className="size-4 mr-2" />
+                        <FileCheck className="w-4 h-4 mr-2" />
                       )}
                       {isProcessing ? 'Processando...' : `Processar Planilha (${parsedEmployees.filter(e => e.valid).length})`}
                     </Button>
@@ -627,7 +627,7 @@ export default function GerenciarFuncionarios() {
                   onClick={handleDownloadTemplate}
                   className="w-full"
                 >
-                  <Download className="size-4 mr-2" />
+                  <Download className="w-4 h-4 mr-2" />
                   Baixar Template (Excel)
                 </Button>
               </div>
@@ -672,9 +672,9 @@ export default function GerenciarFuncionarios() {
                       <tr key={index} className={`border-b border-gray-100 ${employee.valid ? 'bg-green-50' : 'bg-red-50'}`}>
                         <td className="py-2 px-3">
                           {employee.valid ? (
-                            <CheckCircle className="size-4 text-green-600" />
+                            <CheckCircle className="w-4 h-4 text-green-600" />
                           ) : (
-                            <AlertCircle className="size-4 text-red-600" />
+                            <AlertCircle className="w-4 h-4 text-red-600" />
                           )}
                         </td>
                         <td className="py-2 px-3">{employee.nome}</td>
@@ -830,10 +830,10 @@ export default function GerenciarFuncionarios() {
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                     />
                   ) : null}
-                  {isSubmitting ? 'Salvando...' : (editingFuncionario ? 'Atualizar' : 'Cadastrar')}
+                  {isSubmitting ? 'Salvando' : (editingFuncionario ? 'Atualizar' : 'Cadastrar')}
                 </Button>
               </div>
             </CardContent>

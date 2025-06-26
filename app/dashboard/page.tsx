@@ -145,7 +145,7 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-600 mb-1">{stat.title}</p>
                     <p className="text-2xl font-bold text-foreground">{stat.value}</p>
                     <div className="flex items-center mt-2 text-sm text-green-600">
-                      <TrendingUp className="size-4 mr-1" />
+                      <TrendingUp className="w-4 h-4 mr-1" />
                       {stat.trend}
                     </div>
                   </div>
@@ -186,7 +186,7 @@ export default function Dashboard() {
                     className="h-auto p-4 flex flex-col items-start space-y-2 w-full hover:shadow-lg transition-all duration-300 group"
                   >
                     <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${action.color} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <action.icon className="size-4 text-white" />
+                      <action.icon className="w-4 h-4 text-white" />
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-foreground">{action.title}</p>

@@ -82,7 +82,7 @@ export default function AuthPage() {
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
-                  <Mail className="size-4 absolute left-3 top-3 text-gray-400" />
+                  <Mail className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
                   <Input
                     id="email"
                     type="email"
@@ -99,7 +99,7 @@ export default function AuthPage() {
               <div className="space-y-2">
                 <Label htmlFor="password">Senha</Label>
                 <div className="relative">
-                  <Lock className="size-4 absolute left-3 top-3 text-gray-400" />
+                  <Lock className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
                   <Input
                     id="password"
                     type="password"
@@ -122,7 +122,7 @@ export default function AuthPage() {
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                    className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                   />
                 ) : null}
                 {isLoading ? 'Processando...' : (isLogin ? 'Entrar' : 'Criar Conta')}

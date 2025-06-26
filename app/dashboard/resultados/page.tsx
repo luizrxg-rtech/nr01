@@ -451,7 +451,7 @@ export default function DashboardResultados() {
             onClick={handleExportReport}
             disabled={!formularioSelecionado || perguntas.length === 0}
           >
-            <Download className="size-4 mr-2"/>
+            <Download className="w-4 h-4 mr-2"/>
             Exportar Relatório
           </Button>
         </div>

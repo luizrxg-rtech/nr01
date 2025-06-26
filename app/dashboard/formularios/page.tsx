@@ -306,7 +306,7 @@ export default function GerenciarFormularios() {
             onClick={handleCreateForm}
             className="brand-gradient hover:opacity-90 transition-opacity"
           >
-            <Plus className="size-4 mr-2" />
+            <Plus className="w-4 h-4 mr-2" />
             Novo Formulário
           </Button>
         </motion.div>
@@ -583,7 +583,7 @@ export default function GerenciarFormularios() {
                       className="w-full"
                     >
                       Adicionar Pergunta
-                      <Plus className="size-4 ml-2" />
+                      <Plus className="w-4 h-4 ml-2" />
                     </Button>
                   </div>
                 </div>
@@ -606,12 +606,12 @@ export default function GerenciarFormularios() {
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="size-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                        className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                       />
                     ) : (
-                      <Save className="size-4 mr-2" />
+                      <Save className="w-4 h-4 mr-2" />
                     )}
-                    {isSubmitting ? 'Salvando...' : (editingForm ? 'Atualizar' : 'Criar')} Formulário
+                    {isSubmitting ? 'Salvando' : (editingForm ? 'Atualizar' : 'Criar')} Formulário
                   </Button>
                 </div>
               </div>

@@ -19,7 +19,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import {BarChart3, Download, SearchX, Target, TrendingUp, Users} from 'lucide-react';
+import {BarChart3, Download, SearchX, Target, TrendingUp, Users, Filter} from 'lucide-react';
 import {toast} from "sonner";
 import {useAuth} from "@/contexts/AuthContext";
 import {useLoading} from "@/contexts/LoadingContext";
@@ -53,6 +53,8 @@ export default function DashboardResultados() {
   const [mediaGeral, setMediaGeral] = useState<number | null>(null)
   const [perguntasComDistribuicoes, setPerguntasComDistribuicoes] = useState<PerguntasComDistribuicao[]>([])
   const [formularioSelecionado, setFormularioSelecionado] = useState<Formulario | null>(null)
+  const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<string>('todos')
+  const [setorSelecionado, setSetorSelecionado] = useState<string>('todos')
   const [isInitialLoading, setIsInitialLoading] = useState(true)
 
   const { user, empresaId } = useAuth()
@@ -78,7 +80,7 @@ export default function DashboardResultados() {
 
         setFuncionarios(funcionariosData || [])
         setFormularios(formulariosData || [])
-        
+
         if (formulariosData && formulariosData.length > 0) {
           setFormularioSelecionado(formulariosData[0])
         }
@@ -138,20 +140,40 @@ export default function DashboardResultados() {
     };
   }, [formularioSelecionado, user]) // Removed setLoading from dependencies
 
-  // Calculate metrics when data changes
+  // Get unique sectors for filter
+  const setoresUnicos = [...new Set(funcionarios.map(f => f.setor))].sort();
+
+  // Filter responses based on selected funcionario and setor
+  const respostasFiltradas = useMemo(() => {
+    let filtered = respostas;
+
+    if (funcionarioSelecionado !== 'todos') {
+      filtered = filtered.filter(r => r.funcionario_id === funcionarioSelecionado);
+    }
+
+    if (setorSelecionado !== 'todos') {
+      const funcionariosDoSetor = funcionarios.filter(f => f.setor === setorSelecionado);
+      const idsDoSetor = funcionariosDoSetor.map(f => f.id);
+      filtered = filtered.filter(r => idsDoSetor.includes(r.funcionario_id));
+    }
+
+    return filtered;
+  }, [respostas, funcionarioSelecionado, setorSelecionado, funcionarios]);
+
+  // Calculate metrics when filtered data changes
   useEffect(() => {
-    if (respostas.length > 0 && perguntas.length > 0) {
+    if (respostasFiltradas.length > 0 && perguntas.length > 0) {
       calculaMediasRespostas()
       calculaMediaGeral()
       calculaDistribuicoes()
     }
-  }, [respostas, perguntas])
+  }, [respostasFiltradas, perguntas])
 
   const calculaMediasRespostas = () => {
     const medias: Media[] = perguntas.map(pergunta => {
-      const respostasPergunta = respostas.filter(r => r.pergunta_id === pergunta.id)
+      const respostasPergunta = respostasFiltradas.filter(r => r.pergunta_id === pergunta.id)
       const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
-      
+
       return {
         idPergunta: pergunta.id,
         valor: respostasPergunta.length > 0 ? total / respostasPergunta.length : 0
@@ -162,13 +184,13 @@ export default function DashboardResultados() {
   }
 
   const calculaMediaGeral = () => {
-    if (respostas.length === 0) {
+    if (respostasFiltradas.length === 0) {
       setMediaGeral(0)
       return
     }
 
-    const total = respostas.reduce((sum, resposta) => sum + resposta.valor, 0)
-    setMediaGeral(total / respostas.length)
+    const total = respostasFiltradas.reduce((sum, resposta) => sum + resposta.valor, 0)
+    setMediaGeral(total / respostasFiltradas.length)
   }
 
   const calculaDistribuicoes = () => {
@@ -181,7 +203,7 @@ export default function DashboardResultados() {
         {valor: 5, quantidade: 0},
       ]
 
-      respostas
+      respostasFiltradas
         .filter(r => r.pergunta_id === pergunta.id)
         .forEach(resposta => {
           if (resposta.valor >= 1 && resposta.valor <= 5) {
@@ -213,14 +235,14 @@ export default function DashboardResultados() {
   }, [perguntas, mediasRespostas])
 
   const distribuicaoData = useMemo(() => {
-    if (perguntasComDistribuicoes.length === 0 || respostas.length === 0) return []
-    
+    if (perguntasComDistribuicoes.length === 0 || respostasFiltradas.length === 0) return []
+
     return perguntasComDistribuicoes[0]?.distribuicoes.map(d => ({
       name: `${d.valor} - ${['Nunca', 'Raramente', 'Às vezes', 'Frequentemente', 'Sempre'][d.valor - 1]}`,
       value: d.quantidade,
-      percentage: Math.round((d.quantidade / respostas.length) * 100)
+      percentage: Math.round((d.quantidade / respostasFiltradas.length) * 100)
     })) || []
-  }, [perguntasComDistribuicoes, respostas])
+  }, [perguntasComDistribuicoes, respostasFiltradas])
 
   const tendenciaData = useMemo(() => [
     {mes: 'Jan', satisfacao: 3.2, treinamento: 4.1},
@@ -310,6 +332,61 @@ export default function DashboardResultados() {
         </div>
       </motion.div>
 
+      {/* Filters */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        transition={{delay: 0.1}}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Filter className="w-5 h-5"/>
+              <span>Filtros de Análise</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Funcionário</label>
+                <Select value={funcionarioSelecionado} onValueChange={setFuncionarioSelecionado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um funcionário"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Funcionários</SelectItem>
+                    {funcionarios
+                      .filter(f => f.status === 'ativo')
+                      .map((funcionario) => (
+                        <SelectItem key={funcionario.id} value={funcionario.id}>
+                          {funcionario.nome} - {funcionario.cargo}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Setor</label>
+                <Select value={setorSelecionado} onValueChange={setSetorSelecionado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um setor"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Setores</SelectItem>
+                    {setoresUnicos.map((setor) => (
+                      <SelectItem key={setor} value={setor}>
+                        {setor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Overview Cards */}
       <motion.div
         initial={{opacity: 0, y: 20}}
@@ -322,7 +399,7 @@ export default function DashboardResultados() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total de Respostas</p>
-                <p className="text-2xl font-bold text-foreground">{respostas.length}</p>
+                <p className="text-2xl font-bold text-foreground">{respostasFiltradas.length}</p>
               </div>
               <Users className="w-8 h-8 text-brand-blue"/>
             </div>
@@ -480,7 +557,7 @@ export default function DashboardResultados() {
                   {perguntas.map((pergunta, index) => {
                     const media = mediasRespostas[index]?.valor || 0
                     const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || []
-                    
+
                     return (
                       <motion.tr
                         key={pergunta.id}

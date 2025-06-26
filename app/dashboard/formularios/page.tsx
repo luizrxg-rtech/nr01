@@ -16,7 +16,10 @@ import {
   Eye,
   Save,
   X,
-  MessageSquare
+  MessageSquare,
+  Copy,
+  ExternalLink,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +47,7 @@ export default function GerenciarFormularios() {
     perguntas: [{ id: 1, texto: '' }]
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedFormId, setCopiedFormId] = useState<string | null>(null);
 
   const { user, empresaId } = useAuth();
   const { setLoading } = useLoading();
@@ -60,7 +64,7 @@ export default function GerenciarFormularios() {
     setLoading(true);
     try {
       const formulariosData = await formularioService.getByEmpresaId(empresaId);
-      
+
       // Carregar perguntas para cada formulário
       const formulariosComPerguntas = await Promise.all(
         formulariosData.map(async (formulario) => {
@@ -123,7 +127,7 @@ export default function GerenciarFormularios() {
   const handleUpdatePergunta = (id: number, texto: string) => {
     setFormData(prev => ({
       ...prev,
-      perguntas: prev.perguntas.map(p => 
+      perguntas: prev.perguntas.map(p =>
         p.id === id ? { ...p, texto } : p
       )
     }));
@@ -168,8 +172,8 @@ export default function GerenciarFormularios() {
         const novasPerguntas = await perguntaService.createMany(perguntasData);
 
         // Atualizar estado local
-        setFormularios(prev => prev.map(f => 
-          f.id === editingForm.id 
+        setFormularios(prev => prev.map(f =>
+          f.id === editingForm.id
             ? { ...formularioAtualizado, perguntas: novasPerguntas, respostas: f.respostas }
             : f
         ));
@@ -234,7 +238,7 @@ export default function GerenciarFormularios() {
 
   const handleToggleStatus = async (formulario: FormularioComPerguntas) => {
     const novoStatus = formulario.status === 'ativo' ? 'inativo' : 'ativo';
-    
+
     try {
       const formularioAtualizado = await formularioService.update(formulario.id, {
         status: novoStatus
@@ -251,6 +255,30 @@ export default function GerenciarFormularios() {
       toast.error(error.message || 'Erro ao atualizar status do formulário');
       console.error(error);
     }
+  };
+
+  const getFormularioUrl = (formularioId: string) => {
+    return `${window.location.origin}/formulario/${formularioId}`;
+  };
+
+  const handleCopyLink = async (formularioId: string) => {
+    try {
+      const url = getFormularioUrl(formularioId);
+      await navigator.clipboard.writeText(url);
+      setCopiedFormId(formularioId);
+      toast.success('Link copiado para a área de transferência!');
+
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedFormId(null), 2000);
+    } catch (error) {
+      toast.error('Erro ao copiar link');
+      console.error(error);
+    }
+  };
+
+  const handleOpenForm = (formularioId: string) => {
+    const url = getFormularioUrl(formularioId);
+    window.open(url, '_blank');
   };
 
   const stats = {
@@ -407,13 +435,40 @@ export default function GerenciarFormularios() {
                               )}
                             </ul>
                           </div>
+
+                          {/* Link do formulário */}
+                          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs font-medium text-gray-700 mb-2">Link do formulário:</p>
+                            <div className="flex items-center space-x-2">
+                              <code className="flex-1 text-xs bg-white p-2 rounded border text-gray-600 truncate">
+                                {getFormularioUrl(formulario.id)}
+                              </code>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCopyLink(formulario.id)}
+                                className="flex items-center space-x-1"
+                              >
+                                {copiedFormId === formulario.id ? (
+                                  <Check className="w-3 h-3 text-green-600" />
+                                ) : (
+                                  <Copy className="w-3 h-3" />
+                                )}
+                                <span className="text-xs">
+                                  {copiedFormId === formulario.id ? 'Copiado!' : 'Copiar'}
+                                </span>
+                              </Button>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="flex space-x-2 ml-4">
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleOpenForm(formulario.id)}
                             className="text-brand-blue hover:text-brand-blue-dark"
+                            title="Abrir formulário em nova aba"
                           >
                             <Eye className="w-4 h-4" />
                           </Button>

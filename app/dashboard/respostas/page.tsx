@@ -46,6 +46,7 @@ interface FuncionarioStatus {
   nome: string;
   email: string;
   cargo: string;
+  setor: string;
   status: 'respondeu' | 'nao_respondeu';
   dataResposta?: string;
 }
@@ -53,6 +54,7 @@ interface FuncionarioStatus {
 export default function ControleRespostas() {
   const [filtroFormulario, setFiltroFormulario] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
+  const [filtroSetor, setFiltroSetor] = useState('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [formularios, setFormularios] = useState<Formulario[]>([]);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
@@ -93,7 +95,7 @@ export default function ControleRespostas() {
 
       try {
         console.log('Loading initial data for empresa:', empresaId);
-        
+
         const [formulariosData, funcionariosData] = await Promise.all([
           formularioService.getByEmpresaId(empresaId),
           funcionarioService.getByEmpresaId(empresaId)
@@ -109,12 +111,12 @@ export default function ControleRespostas() {
         setFormularios(formulariosData || []);
         setFuncionarios(funcionariosData?.filter(f => f.status === 'ativo') || []);
         setRetryCount(0);
-        
+
       } catch (error: any) {
         if (!isMounted) return;
-        
+
         console.error('Error loading initial data:', error);
-        
+
         const errorMessage = error.message || 'Erro ao carregar dados';
         setConnectionError(errorMessage);
         toast.error(errorMessage);
@@ -152,16 +154,16 @@ export default function ControleRespostas() {
         ]);
 
         if (!isMounted) return;
-        
+
         const formulario = formularios.find(f => f.id === formularioSelecionado);
-        
+
         if (!formulario) return;
 
         // Create complete responses with related data
         const respostasCompletas: RespostaCompleta[] = respostasData.map(resposta => {
           const funcionario = funcionarios.find(f => f.id === resposta.funcionario_id);
           const pergunta = perguntasData.find(p => p.id === resposta.pergunta_id);
-          
+
           return {
             ...resposta,
             formulario,
@@ -176,12 +178,13 @@ export default function ControleRespostas() {
         const funcionariosComStatus: FuncionarioStatus[] = funcionarios.map(funcionario => {
           const respondeu = respostasData.some(r => r.funcionario_id === funcionario.id);
           const primeiraResposta = respostasData.find(r => r.funcionario_id === funcionario.id);
-          
+
           return {
             id: funcionario.id,
             nome: funcionario.nome,
             email: funcionario.email,
             cargo: funcionario.cargo,
+            setor: funcionario.setor,
             status: respondeu ? 'respondeu' : 'nao_respondeu',
             dataResposta: primeiraResposta?.created_at
           };
@@ -191,7 +194,7 @@ export default function ControleRespostas() {
 
       } catch (error: any) {
         if (!isMounted) return;
-        
+
         const errorMessage = error.message || 'Erro ao carregar respostas';
         toast.error(errorMessage);
         console.error(error);
@@ -217,23 +220,28 @@ export default function ControleRespostas() {
     setConnectionError(null);
   }, []);
 
+  // Get unique sectors for filter
+  const setoresUnicos = [...new Set(funcionarios.map(f => f.setor))].sort();
+
   const filteredRespostas = respostas.filter(resposta => {
-    const matchesStatus = filtroStatus === 'todos' || 
+    const matchesStatus = filtroStatus === 'todos' ||
       (filtroStatus === 'completa' && resposta.valor > 0);
     const matchesSearch = resposta.funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       resposta.funcionario.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSetor = filtroSetor === 'todos' || resposta.funcionario.setor === filtroSetor;
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch && matchesSetor;
   });
 
   const filteredFuncionarios = funcionariosStatus.filter(funcionario => {
-    const matchesStatus = filtroStatus === 'todos' || 
+    const matchesStatus = filtroStatus === 'todos' ||
       (filtroStatus === 'respondeu' && funcionario.status === 'respondeu') ||
       (filtroStatus === 'nao_respondeu' && funcionario.status === 'nao_respondeu');
     const matchesSearch = funcionario.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
       funcionario.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSetor = filtroSetor === 'todos' || funcionario.setor === filtroSetor;
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch && matchesSetor;
   });
 
   const getStatusBadge = (status: string) => {
@@ -259,10 +267,10 @@ export default function ControleRespostas() {
   };
 
   const stats = {
-    totalRespostas: respostas.length,
-    funcionariosQueResponderam: funcionariosStatus.filter(f => f.status === 'respondeu').length,
-    funcionariosQueNaoResponderam: funcionariosStatus.filter(f => f.status === 'nao_respondeu').length,
-    totalFuncionarios: funcionarios.length
+    totalRespostas: filteredRespostas.length,
+    funcionariosQueResponderam: filteredFuncionarios.filter(f => f.status === 'respondeu').length,
+    funcionariosQueNaoResponderam: filteredFuncionarios.filter(f => f.status === 'nao_respondeu').length,
+    totalFuncionarios: filteredFuncionarios.length
   };
 
   const handleExportData = () => {
@@ -398,7 +406,7 @@ export default function ControleRespostas() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400"/>
                 <Input
@@ -431,6 +439,20 @@ export default function ControleRespostas() {
                   <SelectItem value="todos">Todos os Status</SelectItem>
                   <SelectItem value="respondeu">Respondeu</SelectItem>
                   <SelectItem value="nao_respondeu">Não Respondeu</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filtroSetor} onValueChange={setFiltroSetor}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Setor"/>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os Setores</SelectItem>
+                  {setoresUnicos.map((setor) => (
+                    <SelectItem key={setor} value={setor}>
+                      {setor}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
@@ -513,7 +535,7 @@ export default function ControleRespostas() {
                         <div>
                           <h4 className="font-semibold text-foreground">{grupo.funcionario.nome}</h4>
                           <p className="text-sm text-gray-600">{grupo.funcionario.email}</p>
-                          <p className="text-sm text-gray-600">{grupo.funcionario.cargo}</p>
+                          <p className="text-sm text-gray-600">{grupo.funcionario.cargo} - {grupo.funcionario.setor}</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Badge className="bg-green-100 text-green-800">Completa</Badge>
@@ -579,7 +601,7 @@ export default function ControleRespostas() {
                       <div>
                         <p className="font-medium text-foreground">{funcionario.nome}</p>
                         <p className="text-sm text-gray-600">{funcionario.email}</p>
-                        <p className="text-sm text-gray-600">{funcionario.cargo}</p>
+                        <p className="text-sm text-gray-600">{funcionario.cargo} - {funcionario.setor}</p>
                         {funcionario.dataResposta && (
                           <p className="text-xs text-gray-500">
                             Respondeu em: {new Date(funcionario.dataResposta).toLocaleDateString('pt-BR')}

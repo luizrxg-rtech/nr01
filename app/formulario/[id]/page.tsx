@@ -52,6 +52,8 @@ export default function ResponderFormulario({ params }: { params: { id: string }
   const [isCompleted, setIsCompleted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jaRespondeu, setJaRespondeu] = useState(false);
+  const [checkingResponse, setCheckingResponse] = useState(false);
 
   useEffect(() => {
     // Validate UUID format before making any requests
@@ -64,6 +66,13 @@ export default function ResponderFormulario({ params }: { params: { id: string }
     loadFormularioData();
   }, [params.id]);
 
+  // Check if employee already responded when employee is selected
+  useEffect(() => {
+    if (funcionarioId && formulario) {
+      checkIfAlreadyResponded();
+    }
+  }, [funcionarioId, formulario]);
+
   const loadFormularioData = async () => {
     setIsLoading(true);
     setError(null);
@@ -71,7 +80,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
     try {
       // Buscar formulário
       const formularioData = await formularioService.getById(params.id);
-      
+
       if (!formularioData) {
         setError('Formulário não encontrado');
         return;
@@ -86,7 +95,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
 
       // Buscar perguntas do formulário
       const perguntasData = await perguntaService.getByFormularioId(params.id);
-      
+
       if (perguntasData.length === 0) {
         setError('Este formulário não possui perguntas');
         return;
@@ -106,10 +115,39 @@ export default function ResponderFormulario({ params }: { params: { id: string }
     }
   };
 
+  const checkIfAlreadyResponded = async () => {
+    if (!funcionarioId || !formulario) return;
+
+    setCheckingResponse(true);
+    try {
+      const respostasExistentes = await respostaService.getByFuncionarioAndFormulario(
+        funcionarioId,
+        formulario.id
+      );
+
+      if (respostasExistentes.length > 0) {
+        setJaRespondeu(true);
+        toast.error('Você já respondeu este formulário anteriormente.');
+      } else {
+        setJaRespondeu(false);
+      }
+    } catch (error: any) {
+      console.error('Erro ao verificar respostas:', error);
+      toast.error('Erro ao verificar se você já respondeu este formulário.');
+    } finally {
+      setCheckingResponse(false);
+    }
+  };
+
   const handleFuncionarioChange = (value: string) => {
     setFuncionarioId(value);
     const funcionario = funcionarios.find(f => f.id === value);
     setFuncionarioSelecionado(funcionario || null);
+
+    // Reset form state when changing employee
+    setRespostas({});
+    setCurrentQuestion(0);
+    setJaRespondeu(false);
   };
 
   const totalQuestions = perguntas.length;
@@ -118,7 +156,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
 
   const handleAnswerChange = (value: string) => {
     if (!currentPergunta) return;
-    
+
     setRespostas(prev => ({
       ...prev,
       [currentPergunta.id]: value
@@ -156,15 +194,16 @@ export default function ResponderFormulario({ params }: { params: { id: string }
     setIsSubmitting(true);
 
     try {
-      // Verificar se o funcionário já respondeu este formulário
+      // Verificar novamente se o funcionário já respondeu este formulário
       const respostasExistentes = await respostaService.getByFuncionarioAndFormulario(
-        funcionarioId, 
+        funcionarioId,
         params.id
       );
 
       if (respostasExistentes.length > 0) {
         toast.error('Você já respondeu este formulário.');
         setIsSubmitting(false);
+        setJaRespondeu(true);
         return;
       }
 
@@ -223,6 +262,64 @@ export default function ResponderFormulario({ params }: { params: { id: string }
             Voltar ao Início
           </Button>
         </Card>
+      </div>
+    );
+  }
+
+  // Already responded state
+  if (jaRespondeu && funcionarioSelecionado) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full"
+        >
+          <Card className="card p-8 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
+              <AlertCircle className="w-8 h-8 text-yellow-600" />
+            </motion.div>
+
+            <h2 className="text-2xl font-bold text-foreground mb-4">
+              Formulário já respondido
+            </h2>
+
+            <p className="text-gray-600 mb-6">
+              Você já respondeu este formulário anteriormente. Cada funcionário pode responder apenas uma vez.
+            </p>
+
+            <div className="space-y-3">
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Formulário:</strong> {formulario?.nome}
+                </p>
+                <p className="text-sm text-yellow-800">
+                  <strong>Funcionário:</strong> {funcionarioSelecionado?.nome}
+                </p>
+                <p className="text-sm text-yellow-800">
+                  <strong>Status:</strong> Já respondido
+                </p>
+              </div>
+
+              <Button
+                onClick={() => {
+                  setFuncionarioId('');
+                  setFuncionarioSelecionado(null);
+                  setJaRespondeu(false);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Selecionar outro funcionário
+              </Button>
+            </div>
+          </Card>
+        </motion.div>
       </div>
     );
   }
@@ -299,13 +396,15 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Pergunta {currentQuestion + 1} de {totalQuestions}</span>
-                  <span>{Math.round(progress)}% concluído</span>
+              {funcionarioSelecionado && !jaRespondeu && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Pergunta {currentQuestion + 1} de {totalQuestions}</span>
+                    <span>{Math.round(progress)}% concluído</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
                 </div>
-                <Progress value={progress} className="h-2" />
-              </div>
+              )}
             </CardHeader>
           </Card>
         </motion.div>
@@ -333,6 +432,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                       value={funcionarioId}
                       onChange={(e) => handleFuncionarioChange(e.target.value)}
                       className="w-full mt-2 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue"
+                      disabled={checkingResponse}
                     >
                       <option value="">Selecione seu nome...</option>
                       {funcionarios.map((funcionario) => (
@@ -341,21 +441,17 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                         </option>
                       ))}
                     </select>
+                    {checkingResponse && (
+                      <p className="text-sm text-blue-600 mt-2 flex items-center">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full mr-2"
+                        />
+                        Verificando se você já respondeu...
+                      </p>
+                    )}
                   </div>
-                  
-                  {funcionarioSelecionado && (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        <strong>Nome:</strong> {funcionarioSelecionado.nome}
-                      </p>
-                      <p className="text-sm text-blue-800">
-                        <strong>Cargo:</strong> {funcionarioSelecionado.cargo}
-                      </p>
-                      <p className="text-sm text-blue-800">
-                        <strong>Setor:</strong> {funcionarioSelecionado.setor}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -363,7 +459,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
         )}
 
         {/* Question Card */}
-        {funcionarioSelecionado && currentPergunta && (
+        {funcionarioSelecionado && !jaRespondeu && currentPergunta && (
           <motion.div
             key={currentQuestion}
             initial={{ opacity: 0, x: 20 }}
@@ -449,7 +545,7 @@ export default function ResponderFormulario({ params }: { params: { id: string }
         )}
 
         {/* Question Overview */}
-        {funcionarioSelecionado && perguntas.length > 0 && (
+        {funcionarioSelecionado && !jaRespondeu && perguntas.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -467,8 +563,8 @@ export default function ResponderFormulario({ params }: { params: { id: string }
                         index === currentQuestion
                           ? 'bg-brand-blue text-white'
                           : respostas[pergunta.id]
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
                       {index + 1}

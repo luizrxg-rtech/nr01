@@ -28,6 +28,7 @@ import {funcionarioService} from "@/services/funcionario";
 import {respostaService} from "@/services/resposta";
 import {formularioService} from "@/services/formulario";
 import {perguntaService} from "@/services/pergunta";
+import * as XLSX from 'xlsx';
 
 interface Media {
   idPergunta: string;
@@ -49,9 +50,6 @@ export default function DashboardResultados() {
   const [formularios, setFormularios] = useState<Formulario[]>([])
   const [perguntas, setPerguntas] = useState<Pergunta[]>([])
   const [respostas, setRespostas] = useState<Resposta[]>([])
-  const [mediasRespostas, setMediasRespostas] = useState<Media[]>([])
-  const [mediaGeral, setMediaGeral] = useState<number | null>(null)
-  const [perguntasComDistribuicoes, setPerguntasComDistribuicoes] = useState<PerguntasComDistribuicao[]>([])
   const [formularioSelecionado, setFormularioSelecionado] = useState<Formulario | null>(null)
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<string>('todos')
   const [setorSelecionado, setSetorSelecionado] = useState<string>('todos')
@@ -141,7 +139,9 @@ export default function DashboardResultados() {
   }, [formularioSelecionado, user]) // Removed setLoading from dependencies
 
   // Get unique sectors for filter
-  const setoresUnicos = Array.from(new Set(funcionarios.map(f => f.setor))).sort();
+  const setoresUnicos = useMemo(() => {
+    return Array.from(new Set(funcionarios.map(f => f.setor))).sort();
+  }, [funcionarios]);
 
   // Filter responses based on selected funcionario and setor
   const respostasFiltradas = useMemo(() => {
@@ -161,16 +161,10 @@ export default function DashboardResultados() {
   }, [respostas, funcionarioSelecionado, setorSelecionado, funcionarios]);
 
   // Calculate metrics when filtered data changes
-  useEffect(() => {
-    if (respostasFiltradas.length > 0 && perguntas.length > 0) {
-      calculaMediasRespostas()
-      calculaMediaGeral()
-      calculaDistribuicoes()
-    }
-  }, [respostasFiltradas, perguntas])
+  const mediasRespostas = useMemo(() => {
+    if (respostasFiltradas.length === 0 || perguntas.length === 0) return [];
 
-  const calculaMediasRespostas = () => {
-    const medias: Media[] = perguntas.map(pergunta => {
+    return perguntas.map(pergunta => {
       const respostasPergunta = respostasFiltradas.filter(r => r.pergunta_id === pergunta.id)
       const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
 
@@ -179,22 +173,19 @@ export default function DashboardResultados() {
         valor: respostasPergunta.length > 0 ? total / respostasPergunta.length : 0
       }
     })
+  }, [respostasFiltradas, perguntas]);
 
-    setMediasRespostas(medias)
-  }
-
-  const calculaMediaGeral = () => {
-    if (respostasFiltradas.length === 0) {
-      setMediaGeral(0)
-      return
-    }
+  const mediaGeral = useMemo(() => {
+    if (respostasFiltradas.length === 0) return 0;
 
     const total = respostasFiltradas.reduce((sum, resposta) => sum + resposta.valor, 0)
-    setMediaGeral(total / respostasFiltradas.length)
-  }
+    return total / respostasFiltradas.length;
+  }, [respostasFiltradas]);
 
-  const calculaDistribuicoes = () => {
-    const lPerguntasComDistribuicoes: PerguntasComDistribuicao[] = perguntas.map(pergunta => {
+  const perguntasComDistribuicoes = useMemo(() => {
+    if (perguntas.length === 0) return [];
+
+    return perguntas.map(pergunta => {
       const distribuicoes: Distribuicao[] = [
         {valor: 1, quantidade: 0},
         {valor: 2, quantidade: 0},
@@ -216,9 +207,7 @@ export default function DashboardResultados() {
         distribuicoes
       }
     })
-
-    setPerguntasComDistribuicoes(lPerguntasComDistribuicoes)
-  }
+  }, [respostasFiltradas, perguntas]);
 
   const findFormularioByName = (nome: string) => {
     return formularios?.find(f =>
@@ -264,6 +253,138 @@ export default function DashboardResultados() {
     if (media >= 2.5) return 'Regular'
     return 'Ruim'
   }
+
+  // Reset filters when form changes
+  useEffect(() => {
+    setFuncionarioSelecionado('todos');
+    setSetorSelecionado('todos');
+  }, [formularioSelecionado]);
+
+  const handleExportReport = () => {
+    if (!formularioSelecionado || perguntas.length === 0) {
+      toast.error('Selecione um formulário com dados para exportar');
+      return;
+    }
+
+    try {
+      // Criar dados para o relatório
+      const reportData = [];
+
+      // Cabeçalho do relatório
+      reportData.push(['RELATÓRIO DE RESULTADOS - ' + formularioSelecionado.nome.toUpperCase()]);
+      reportData.push(['Gerado em:', new Date().toLocaleDateString('pt-BR')]);
+      reportData.push(['']); // Linha vazia
+
+      // Resumo geral
+      reportData.push(['RESUMO GERAL']);
+      reportData.push(['Total de Respostas:', respostasFiltradas.length]);
+      reportData.push(['Média Geral:', mediaGeral?.toFixed(2) || '0.00']);
+      reportData.push(['Status:', getStatusLabel(mediaGeral || 0)]);
+      reportData.push(['']); // Linha vazia
+
+      // Filtros aplicados
+      reportData.push(['FILTROS APLICADOS']);
+      reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
+      reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
+      reportData.push(['']); // Linha vazia
+
+      // Resultados por pergunta
+      reportData.push(['RESULTADOS POR PERGUNTA']);
+      reportData.push(['Pergunta', 'Média', 'Status', 'Nunca (1)', 'Raramente (2)', 'Às vezes (3)', 'Frequentemente (4)', 'Sempre (5)']);
+
+      perguntas.forEach((pergunta, index) => {
+        const media = mediasRespostas[index]?.valor || 0;
+        const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || [];
+
+        reportData.push([
+          pergunta.texto,
+          media.toFixed(2),
+          getStatusLabel(media),
+          distribuicao[0]?.quantidade || 0,
+          distribuicao[1]?.quantidade || 0,
+          distribuicao[2]?.quantidade || 0,
+          distribuicao[3]?.quantidade || 0,
+          distribuicao[4]?.quantidade || 0
+        ]);
+      });
+
+      reportData.push(['']); // Linha vazia
+
+      // Respostas detalhadas por funcionário
+      if (respostasFiltradas.length > 0) {
+        reportData.push(['RESPOSTAS DETALHADAS POR FUNCIONÁRIO']);
+
+        // Agrupar respostas por funcionário
+        const respostasPorFuncionario = respostasFiltradas.reduce((acc, resposta) => {
+          if (!acc[resposta.funcionario_id]) {
+            acc[resposta.funcionario_id] = [];
+          }
+          acc[resposta.funcionario_id].push(resposta);
+          return acc;
+        }, {} as Record<string, Resposta[]>);
+
+        // Cabeçalho da tabela de respostas detalhadas
+        const headerRow = ['Funcionário', 'Cargo', 'Setor'];
+        perguntas.forEach((pergunta, index) => {
+          headerRow.push(`P${index + 1}`);
+        });
+        headerRow.push('Média Individual');
+        reportData.push(headerRow);
+
+        // Dados de cada funcionário
+        Object.entries(respostasPorFuncionario).forEach(([funcionarioId, respostasFunc]) => {
+          const funcionario = funcionarios.find(f => f.id === funcionarioId);
+          if (!funcionario) return;
+
+          const row = [funcionario.nome, funcionario.cargo, funcionario.setor];
+
+          // Adicionar respostas para cada pergunta
+          perguntas.forEach(pergunta => {
+            const resposta = respostasFunc.find(r => r.pergunta_id === pergunta.id);
+            row.push(resposta ? resposta.valor.toString() : 'N/A');
+          });
+
+          // Calcular média individual
+          const mediaIndividual = respostasFunc.length > 0
+            ? respostasFunc.reduce((sum, r) => sum + r.valor, 0) / respostasFunc.length
+            : 0;
+          row.push(mediaIndividual.toFixed(2));
+
+          reportData.push(row);
+        });
+      }
+
+      // Criar planilha Excel
+      const worksheet = XLSX.utils.aoa_to_sheet(reportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório de Resultados");
+
+      // Aplicar estilos básicos (largura das colunas)
+      const colWidths = [
+        { wch: 50 }, // Pergunta/Funcionário
+        { wch: 15 }, // Média/Cargo
+        { wch: 15 }, // Status/Setor
+        { wch: 12 }, // Nunca/P1
+        { wch: 12 }, // Raramente/P2
+        { wch: 12 }, // Às vezes/P3
+        { wch: 15 }, // Frequentemente/P4
+        { wch: 12 }, // Sempre/P5
+        { wch: 15 }, // Média Individual
+      ];
+      worksheet['!cols'] = colWidths;
+
+      // Gerar nome do arquivo
+      const fileName = `relatorio_resultados_${formularioSelecionado.nome.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download do arquivo
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success('Relatório exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      toast.error('Erro ao exportar relatório. Tente novamente.');
+    }
+  };
 
   if (formularios.length === 0 && !isInitialLoading) {
     return (
@@ -325,10 +446,14 @@ export default function DashboardResultados() {
               ))}
             </SelectContent>
           </Select>
-          {/*<Button variant="outline">*/}
-          {/*  <Download className="size-4 mr-2"/>*/}
-          {/*  Exportar Relatório*/}
-          {/*</Button>*/}
+          <Button
+            variant="outline"
+            onClick={handleExportReport}
+            disabled={!formularioSelecionado || perguntas.length === 0}
+          >
+            <Download className="size-4 mr-2"/>
+            Exportar Relatório
+          </Button>
         </div>
       </motion.div>
 

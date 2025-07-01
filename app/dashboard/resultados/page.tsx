@@ -45,23 +45,6 @@ interface PerguntasComDistribuicao {
   distribuicoes: Distribuicao[];
 }
 
-interface FormularioComDados {
-  formulario: Formulario;
-  perguntas: Pergunta[];
-  respostas: Resposta[];
-  mediaGeral: number;
-  totalRespostas: number;
-}
-
-interface RiskMatrixItem {
-  pergunta: string;
-  probabilidade: number;
-  severidade: number;
-  risco: number;
-  nivel: string;
-  cor: string;
-}
-
 export default function DashboardResultados() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([])
   const [formularios, setFormularios] = useState<Formulario[]>([])
@@ -71,8 +54,6 @@ export default function DashboardResultados() {
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<string>('todos')
   const [setorSelecionado, setSetorSelecionado] = useState<string>('todos')
   const [isInitialLoading, setIsInitialLoading] = useState(true)
-  const [formulariosComDados, setFormulariosComDados] = useState<FormularioComDados[]>([])
-  const [mostrarTodosFormularios, setMostrarTodosFormularios] = useState(false)
 
   const { user, empresaId } = useAuth()
   const { setLoading } = useLoading()
@@ -122,7 +103,7 @@ export default function DashboardResultados() {
 
   // Load form-specific data when form selection changes
   useEffect(() => {
-    if (!user || !formularioSelecionado || isInitialLoading || mostrarTodosFormularios) return
+    if (!user || !formularioSelecionado || isInitialLoading) return
 
     let isMounted = true;
 
@@ -157,17 +138,19 @@ export default function DashboardResultados() {
     };
   }, [formularioSelecionado, user]) // Removed setLoading from dependencies
 
-  // Load all forms data when "todos os formulários" is selected
+  // Load all forms data when "todos" is selected
   useEffect(() => {
-    if (!user || !mostrarTodosFormularios || formularios.length === 0) return
+    if (!user || formularioSelecionado !== null || isInitialLoading) return
 
     let isMounted = true;
 
-    const loadTodosFormulariosData = async () => {
+    const loadAllFormsData = async () => {
       setLoading(true)
 
       try {
-        const formulariosComDadosTemp: FormularioComDados[] = []
+        // Load all responses from all forms
+        const allRespostas: Resposta[] = []
+        const allPerguntas: Pergunta[] = []
 
         for (const formulario of formularios) {
           const [perguntasData, respostasData] = await Promise.all([
@@ -175,23 +158,14 @@ export default function DashboardResultados() {
             respostaService.getByFormularioId(formulario.id)
           ])
 
-          // Calcular média geral do formulário
-          const mediaGeral = respostasData.length > 0 
-            ? respostasData.reduce((sum, r) => sum + r.valor, 0) / respostasData.length 
-            : 0
-
-          formulariosComDadosTemp.push({
-            formulario,
-            perguntas: perguntasData || [],
-            respostas: respostasData || [],
-            mediaGeral,
-            totalRespostas: respostasData.length
-          })
+          allPerguntas.push(...perguntasData)
+          allRespostas.push(...respostasData)
         }
 
         if (!isMounted) return;
 
-        setFormulariosComDados(formulariosComDadosTemp)
+        setPerguntas(allPerguntas)
+        setRespostas(allRespostas)
       } catch (error: any) {
         if (!isMounted) return;
         toast.error("Erro ao carregar dados de todos os formulários")
@@ -203,12 +177,12 @@ export default function DashboardResultados() {
       }
     }
 
-    loadTodosFormulariosData()
+    loadAllFormsData()
 
     return () => {
       isMounted = false;
     };
-  }, [mostrarTodosFormularios, formularios, user])
+  }, [formularioSelecionado, formularios, user]) // Removed setLoading from dependencies
 
   // Get unique sectors for filter
   const setoresUnicos = useMemo(() => {
@@ -232,57 +206,70 @@ export default function DashboardResultados() {
     return filtered;
   }, [respostas, funcionarioSelecionado, setorSelecionado, funcionarios]);
 
-  // Filter all forms data based on selected funcionario and setor
-  const formulariosComDadosFiltrados = useMemo(() => {
-    if (!mostrarTodosFormularios) return formulariosComDados;
-
-    return formulariosComDados.map(item => {
-      let respostasFiltradas = item.respostas;
-
-      if (funcionarioSelecionado !== 'todos') {
-        respostasFiltradas = respostasFiltradas.filter(r => r.funcionario_id === funcionarioSelecionado);
-      }
-
-      if (setorSelecionado !== 'todos') {
-        const funcionariosDoSetor = funcionarios.filter(f => f.setor === setorSelecionado);
-        const idsDoSetor = funcionariosDoSetor.map(f => f.id);
-        respostasFiltradas = respostasFiltradas.filter(r => idsDoSetor.includes(r.funcionario_id));
-      }
-
-      // Recalcular média com respostas filtradas
-      const mediaGeral = respostasFiltradas.length > 0 
-        ? respostasFiltradas.reduce((sum, r) => sum + r.valor, 0) / respostasFiltradas.length 
-        : 0;
-
-      return {
-        ...item,
-        respostas: respostasFiltradas,
-        mediaGeral,
-        totalRespostas: respostasFiltradas.length
-      };
-    });
-  }, [formulariosComDados, funcionarioSelecionado, setorSelecionado, funcionarios, mostrarTodosFormularios]);
-
   // Calculate metrics when filtered data changes
   const mediasRespostas = useMemo(() => {
-    if (respostasFiltradas.length === 0 || perguntas.length === 0) return [];
+    if (formularioSelecionado === null) {
+      // When showing all forms, group by form
+      const formMedias: { [key: string]: { nome: string; media: number } } = {}
+      
+      formularios.forEach(formulario => {
+        const respostasForm = respostasFiltradas.filter(r => r.formulario_id === formulario.id)
+        if (respostasForm.length > 0) {
+          const total = respostasForm.reduce((sum, r) => sum + r.valor, 0)
+          formMedias[formulario.id] = {
+            nome: formulario.nome,
+            media: total / respostasForm.length
+          }
+        }
+      })
+      
+      return Object.entries(formMedias).map(([id, data]) => ({
+        idPergunta: id,
+        valor: data.media
+      }))
+    } else {
+      // When showing specific form, group by question
+      if (respostasFiltradas.length === 0 || perguntas.length === 0) return [];
 
-    return perguntas.map(pergunta => {
-      const respostasPergunta = respostasFiltradas.filter(r => r.pergunta_id === pergunta.id)
-      const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
+      return perguntas.map(pergunta => {
+        const respostasPergunta = respostasFiltradas.filter(r => r.pergunta_id === pergunta.id)
+        const total = respostasPergunta.reduce((sum, r) => sum + r.valor, 0)
 
-      return {
-        idPergunta: pergunta.id,
-        valor: respostasPergunta.length > 0 ? total / respostasPergunta.length : 0
-      }
-    })
-  }, [respostasFiltradas, perguntas]);
+        return {
+          idPergunta: pergunta.id,
+          valor: respostasPergunta.length > 0 ? total / respostasPergunta.length : 0
+        }
+      })
+    }
+  }, [respostasFiltradas, perguntas, formularios, formularioSelecionado]);
 
   const mediaGeral = useMemo(() => {
     if (respostasFiltradas.length === 0) return 0;
 
     const total = respostasFiltradas.reduce((sum, resposta) => sum + resposta.valor, 0)
     return total / respostasFiltradas.length;
+  }, [respostasFiltradas]);
+
+  // Calculate risk classification based on sum of responses
+  const classificacaoRisco = useMemo(() => {
+    if (respostasFiltradas.length === 0) return { nivel: 'N/A', cor: 'gray', soma: 0 };
+
+    const somaTotal = respostasFiltradas.reduce((sum, resposta) => sum + resposta.valor, 0);
+
+    if (somaTotal >= 1 && somaTotal <= 3) {
+      return { nivel: 'Trivial', cor: 'green', soma: somaTotal };
+    } else if (somaTotal >= 4 && somaTotal <= 8) {
+      return { nivel: 'Tolerável', cor: 'blue', soma: somaTotal };
+    } else if (somaTotal >= 9 && somaTotal <= 12) {
+      return { nivel: 'Moderado', cor: 'yellow', soma: somaTotal };
+    } else if (somaTotal >= 13 && somaTotal <= 19) {
+      return { nivel: 'Alto', cor: 'orange', soma: somaTotal };
+    } else if (somaTotal >= 20 && somaTotal <= 25) {
+      return { nivel: 'Extremo', cor: 'red', soma: somaTotal };
+    } else {
+      // For values above 25, still classify as Extremo
+      return { nivel: 'Extremo', cor: 'red', soma: somaTotal };
+    }
   }, [respostasFiltradas]);
 
   const perguntasComDistribuicoes = useMemo(() => {
@@ -312,92 +299,6 @@ export default function DashboardResultados() {
     })
   }, [respostasFiltradas, perguntas]);
 
-  // Risk Matrix Calculation
-  const matrizRisco = useMemo(() => {
-    if (mostrarTodosFormularios) {
-      return formulariosComDadosFiltrados.map(item => {
-        // Para formulários: probabilidade baseada na quantidade de respostas, severidade baseada na média
-        const probabilidade = Math.min(5, Math.max(1, Math.ceil((item.totalRespostas / Math.max(funcionarios.length, 1)) * 5)));
-        const severidade = Math.ceil((6 - item.mediaGeral)); // Inverter: média baixa = severidade alta
-        const risco = probabilidade * severidade;
-        
-        let nivel = '';
-        let cor = '';
-        
-        if (risco >= 1 && risco <= 3) {
-          nivel = 'Trivial';
-          cor = '#22c55e'; // Verde
-        } else if (risco >= 4 && risco <= 8) {
-          nivel = 'Tolerável';
-          cor = '#06b6d4'; // Azul claro
-        } else if (risco >= 9 && risco <= 12) {
-          nivel = 'Moderado';
-          cor = '#eab308'; // Amarelo
-        } else if (risco >= 13 && risco <= 19) {
-          nivel = 'Alto';
-          cor = '#f97316'; // Laranja
-        } else {
-          nivel = 'Extremo';
-          cor = '#ef4444'; // Vermelho
-        }
-
-        return {
-          pergunta: item.formulario.nome,
-          probabilidade,
-          severidade,
-          risco,
-          nivel,
-          cor
-        };
-      });
-    } else {
-      return perguntas.map((pergunta, index) => {
-        const media = mediasRespostas[index]?.valor || 0;
-        const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || [];
-        
-        // Probabilidade baseada na frequência de respostas baixas (1-2)
-        const respostasBaixas = distribuicao.slice(0, 2).reduce((sum, d) => sum + d.quantidade, 0);
-        const totalRespostasPergunta = distribuicao.reduce((sum, d) => sum + d.quantidade, 0);
-        const probabilidade = totalRespostasPergunta > 0 
-          ? Math.max(1, Math.ceil((respostasBaixas / totalRespostasPergunta) * 5))
-          : 1;
-        
-        // Severidade baseada na média invertida (média baixa = severidade alta)
-        const severidade = Math.ceil((6 - media));
-        const risco = probabilidade * severidade;
-        
-        let nivel = '';
-        let cor = '';
-        
-        if (risco >= 1 && risco <= 3) {
-          nivel = 'Trivial';
-          cor = '#22c55e'; // Verde
-        } else if (risco >= 4 && risco <= 8) {
-          nivel = 'Tolerável';
-          cor = '#06b6d4'; // Azul claro
-        } else if (risco >= 9 && risco <= 12) {
-          nivel = 'Moderado';
-          cor = '#eab308'; // Amarelo
-        } else if (risco >= 13 && risco <= 19) {
-          nivel = 'Alto';
-          cor = '#f97316'; // Laranja
-        } else {
-          nivel = 'Extremo';
-          cor = '#ef4444'; // Vermelho
-        }
-
-        return {
-          pergunta: pergunta.texto,
-          probabilidade,
-          severidade,
-          risco,
-          nivel,
-          cor
-        };
-      });
-    }
-  }, [perguntas, mediasRespostas, perguntasComDistribuicoes, mostrarTodosFormularios, formulariosComDadosFiltrados, funcionarios]);
-
   const findFormularioByName = (nome: string) => {
     return formularios?.find(f =>
       f.nome.toLowerCase().includes(nome?.toLowerCase() || '')
@@ -405,23 +306,25 @@ export default function DashboardResultados() {
   }
 
   const chartData = useMemo(() => {
-    if (mostrarTodosFormularios) {
-      // Dados para gráfico de todos os formulários (com filtros aplicados)
-      return formulariosComDadosFiltrados.map(item => ({
-        pergunta: item.formulario.nome.substring(0, 30) + (item.formulario.nome.length > 30 ? '...' : ''),
-        media: item.mediaGeral,
-        perguntaCompleta: item.formulario.nome,
-        totalRespostas: item.totalRespostas
-      }))
+    if (formularioSelecionado === null) {
+      // Show data by forms
+      return formularios?.map((f) => {
+        const media = mediasRespostas.find(m => m.idPergunta === f.id)?.valor || 0
+        return {
+          pergunta: f.nome.substring(0, 30) + (f.nome.length > 30 ? '...' : ''),
+          media: media,
+          perguntaCompleta: f.nome
+        }
+      }).filter(item => item.media > 0) || []
     } else {
-      // Dados para gráfico de perguntas do formulário selecionado
+      // Show data by questions
       return perguntas?.map((p, index) => ({
         pergunta: p.texto.substring(0, 30) + '...',
         media: mediasRespostas[index]?.valor || 0,
         perguntaCompleta: p.texto
       })) || []
     }
-  }, [perguntas, mediasRespostas, mostrarTodosFormularios, formulariosComDadosFiltrados])
+  }, [perguntas, mediasRespostas, formularios, formularioSelecionado])
 
   const distribuicaoData = useMemo(() => {
     if (perguntasComDistribuicoes.length === 0 || respostasFiltradas.length === 0) return []
@@ -454,138 +357,77 @@ export default function DashboardResultados() {
     return 'Ruim'
   }
 
+  const getRiskColor = (cor: string) => {
+    switch (cor) {
+      case 'green': return 'text-green-600 bg-green-100'
+      case 'blue': return 'text-blue-600 bg-blue-100'
+      case 'yellow': return 'text-yellow-600 bg-yellow-100'
+      case 'orange': return 'text-orange-600 bg-orange-100'
+      case 'red': return 'text-red-600 bg-red-100'
+      default: return 'text-gray-600 bg-gray-100'
+    }
+  }
+
   // Reset filters when form changes
   useEffect(() => {
     setFuncionarioSelecionado('todos');
     setSetorSelecionado('todos');
   }, [formularioSelecionado]);
 
-  const handleFormularioChange = (value: string) => {
-    if (value === 'todos') {
-      setMostrarTodosFormularios(true)
-      setFormularioSelecionado(null)
-    } else {
-      setMostrarTodosFormularios(false)
-      const formulario = findFormularioByName(value)
-      setFormularioSelecionado(formulario)
-    }
-  }
-
   const handleExportReport = () => {
-    if (mostrarTodosFormularios) {
-      // Export para todos os formulários
-      if (formulariosComDadosFiltrados.length === 0) {
-        toast.error('Nenhum dado de formulário para exportar');
-        return;
-      }
+    if (formularios.length === 0) {
+      toast.error('Nenhum dado disponível para exportar');
+      return;
+    }
 
-      try {
-        const reportData = [];
+    try {
+      // Criar dados para o relatório
+      const reportData = [];
 
-        // Cabeçalho do relatório
-        reportData.push(['RELATÓRIO GERAL DE FORMULÁRIOS']);
-        reportData.push(['Gerado em:', new Date().toLocaleDateString('pt-BR')]);
-        reportData.push(['']); // Linha vazia
+      // Cabeçalho do relatório
+      const tituloRelatorio = formularioSelecionado 
+        ? `RELATÓRIO DE RESULTADOS - ${formularioSelecionado.nome.toUpperCase()}`
+        : 'RELATÓRIO DE RESULTADOS - TODOS OS FORMULÁRIOS';
+      
+      reportData.push([tituloRelatorio]);
+      reportData.push(['Gerado em:', new Date().toLocaleDateString('pt-BR')]);
+      reportData.push(['']); // Linha vazia
 
-        // Filtros aplicados
-        reportData.push(['FILTROS APLICADOS']);
-        reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
-        reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
-        reportData.push(['']); // Linha vazia
+      // Resumo geral
+      reportData.push(['RESUMO GERAL']);
+      reportData.push(['Total de Respostas:', respostasFiltradas.length]);
+      reportData.push(['Média Geral:', mediaGeral?.toFixed(2) || '0.00']);
+      reportData.push(['Status:', getStatusLabel(mediaGeral || 0)]);
+      reportData.push(['Classificação de Risco:', classificacaoRisco.nivel]);
+      reportData.push(['Soma Total das Respostas:', classificacaoRisco.soma]);
+      reportData.push(['']); // Linha vazia
 
-        // Resumo geral
-        reportData.push(['RESUMO GERAL']);
-        reportData.push(['Total de Formulários:', formulariosComDadosFiltrados.length]);
-        const mediaGeralTodos = formulariosComDadosFiltrados.length > 0 
-          ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length 
-          : 0;
-        reportData.push(['Média Geral de Todos os Formulários:', mediaGeralTodos.toFixed(2)]);
-        reportData.push(['']); // Linha vazia
+      // Filtros aplicados
+      reportData.push(['FILTROS APLICADOS']);
+      reportData.push(['Formulário:', formularioSelecionado ? formularioSelecionado.nome : 'Todos os Formulários']);
+      reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
+      reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
+      reportData.push(['']); // Linha vazia
 
+      if (formularioSelecionado === null) {
         // Resultados por formulário
         reportData.push(['RESULTADOS POR FORMULÁRIO']);
-        reportData.push(['Nome do Formulário', 'Média Geral', 'Status', 'Total de Respostas', 'Total de Perguntas']);
+        reportData.push(['Formulário', 'Média', 'Status', 'Total de Respostas']);
 
-        formulariosComDadosFiltrados.forEach((item) => {
+        formularios.forEach(formulario => {
+          const respostasForm = respostasFiltradas.filter(r => r.formulario_id === formulario.id);
+          const media = respostasForm.length > 0 
+            ? respostasForm.reduce((sum, r) => sum + r.valor, 0) / respostasForm.length 
+            : 0;
+
           reportData.push([
-            item.formulario.nome,
-            item.mediaGeral.toFixed(2),
-            getStatusLabel(item.mediaGeral),
-            item.totalRespostas,
-            item.perguntas.length
+            formulario.nome,
+            media.toFixed(2),
+            getStatusLabel(media),
+            respostasForm.length
           ]);
         });
-
-        // Matriz de Risco
-        reportData.push(['']); // Linha vazia
-        reportData.push(['MATRIZ DE RISCO']);
-        reportData.push(['Formulário', 'Probabilidade', 'Severidade', 'Risco', 'Nível']);
-
-        matrizRisco.forEach((item) => {
-          reportData.push([
-            item.pergunta,
-            item.probabilidade,
-            item.severidade,
-            item.risco,
-            item.nivel
-          ]);
-        });
-
-        // Criar planilha Excel
-        const worksheet = XLSX.utils.aoa_to_sheet(reportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório Geral");
-
-        // Aplicar estilos básicos (largura das colunas)
-        const colWidths = [
-          { wch: 50 }, // Nome do Formulário
-          { wch: 15 }, // Média Geral
-          { wch: 15 }, // Status
-          { wch: 20 }, // Total de Respostas
-          { wch: 20 }, // Total de Perguntas
-        ];
-        worksheet['!cols'] = colWidths;
-
-        // Gerar nome do arquivo
-        const fileName = `relatorio_geral_formularios_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-        // Download do arquivo
-        XLSX.writeFile(workbook, fileName);
-
-        toast.success('Relatório geral exportado com sucesso!');
-      } catch (error) {
-        console.error('Erro ao exportar relatório geral:', error);
-        toast.error('Erro ao exportar relatório geral. Tente novamente.');
-      }
-    } else {
-      // Export para formulário específico
-      if (!formularioSelecionado || perguntas.length === 0) {
-        toast.error('Selecione um formulário com dados para exportar');
-        return;
-      }
-
-      try {
-        // Criar dados para o relatório
-        const reportData = [];
-
-        // Cabeçalho do relatório
-        reportData.push(['RELATÓRIO DE RESULTADOS - ' + formularioSelecionado.nome.toUpperCase()]);
-        reportData.push(['Gerado em:', new Date().toLocaleDateString('pt-BR')]);
-        reportData.push(['']); // Linha vazia
-
-        // Resumo geral
-        reportData.push(['RESUMO GERAL']);
-        reportData.push(['Total de Respostas:', respostasFiltradas.length]);
-        reportData.push(['Média Geral:', mediaGeral?.toFixed(2) || '0.00']);
-        reportData.push(['Status:', getStatusLabel(mediaGeral || 0)]);
-        reportData.push(['']); // Linha vazia
-
-        // Filtros aplicados
-        reportData.push(['FILTROS APLICADOS']);
-        reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
-        reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
-        reportData.push(['']); // Linha vazia
-
+      } else {
         // Resultados por pergunta
         reportData.push(['RESULTADOS POR PERGUNTA']);
         reportData.push(['Pergunta', 'Média', 'Status', 'Nunca (1)', 'Raramente (2)', 'Às vezes (3)', 'Frequentemente (4)', 'Sempre (5)']);
@@ -605,98 +447,96 @@ export default function DashboardResultados() {
             distribuicao[4]?.quantidade || 0
           ]);
         });
+      }
 
-        // Matriz de Risco
-        reportData.push(['']); // Linha vazia
-        reportData.push(['MATRIZ DE RISCO']);
-        reportData.push(['Pergunta', 'Probabilidade', 'Severidade', 'Risco', 'Nível']);
+      reportData.push(['']); // Linha vazia
 
-        matrizRisco.forEach((item) => {
-          reportData.push([
-            item.pergunta,
-            item.probabilidade,
-            item.severidade,
-            item.risco,
-            item.nivel
-          ]);
-        });
+      // Respostas detalhadas por funcionário
+      if (respostasFiltradas.length > 0) {
+        reportData.push(['RESPOSTAS DETALHADAS POR FUNCIONÁRIO']);
 
-        reportData.push(['']); // Linha vazia
+        // Agrupar respostas por funcionário
+        const respostasPorFuncionario = respostasFiltradas.reduce((acc, resposta) => {
+          if (!acc[resposta.funcionario_id]) {
+            acc[resposta.funcionario_id] = [];
+          }
+          acc[resposta.funcionario_id].push(resposta);
+          return acc;
+        }, {} as Record<string, Resposta[]>);
 
-        // Respostas detalhadas por funcionário
-        if (respostasFiltradas.length > 0) {
-          reportData.push(['RESPOSTAS DETALHADAS POR FUNCIONÁRIO']);
-
-          // Agrupar respostas por funcionário
-          const respostasPorFuncionario = respostasFiltradas.reduce((acc, resposta) => {
-            if (!acc[resposta.funcionario_id]) {
-              acc[resposta.funcionario_id] = [];
-            }
-            acc[resposta.funcionario_id].push(resposta);
-            return acc;
-          }, {} as Record<string, Resposta[]>);
-
-          // Cabeçalho da tabela de respostas detalhadas
-          const headerRow = ['Funcionário', 'Cargo', 'Setor'];
+        // Cabeçalho da tabela de respostas detalhadas
+        const headerRow = ['Funcionário', 'Cargo', 'Setor'];
+        if (formularioSelecionado) {
           perguntas.forEach((pergunta, index) => {
             headerRow.push(`P${index + 1}`);
           });
-          headerRow.push('Média Individual');
-          reportData.push(headerRow);
+        } else {
+          headerRow.push('Formulários Respondidos');
+        }
+        headerRow.push('Média Individual');
+        reportData.push(headerRow);
 
-          // Dados de cada funcionário
-          Object.entries(respostasPorFuncionario).forEach(([funcionarioId, respostasFunc]) => {
-            const funcionario = funcionarios.find(f => f.id === funcionarioId);
-            if (!funcionario) return;
+        // Dados de cada funcionário
+        Object.entries(respostasPorFuncionario).forEach(([funcionarioId, respostasFunc]) => {
+          const funcionario = funcionarios.find(f => f.id === funcionarioId);
+          if (!funcionario) return;
 
-            const row = [funcionario.nome, funcionario.cargo, funcionario.setor];
+          const row = [funcionario.nome, funcionario.cargo, funcionario.setor];
 
+          if (formularioSelecionado) {
             // Adicionar respostas para cada pergunta
             perguntas.forEach(pergunta => {
               const resposta = respostasFunc.find(r => r.pergunta_id === pergunta.id);
               row.push(resposta ? resposta.valor.toString() : 'N/A');
             });
+          } else {
+            // Adicionar formulários respondidos
+            const formulariosRespondidos = Array.from(new Set(respostasFunc.map(r => r.formulario_id))).length;
+            row.push(formulariosRespondidos.toString());
+          }
 
-            // Calcular média individual
-            const mediaIndividual = respostasFunc.length > 0
-              ? respostasFunc.reduce((sum, r) => sum + r.valor, 0) / respostasFunc.length
-              : 0;
-            row.push(mediaIndividual.toFixed(2));
+          // Calcular média individual
+          const mediaIndividual = respostasFunc.length > 0
+            ? respostasFunc.reduce((sum, r) => sum + r.valor, 0) / respostasFunc.length
+            : 0;
+          row.push(mediaIndividual.toFixed(2));
 
-            reportData.push(row);
-          });
-        }
-
-        // Criar planilha Excel
-        const worksheet = XLSX.utils.aoa_to_sheet(reportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório de Resultados");
-
-        // Aplicar estilos básicos (largura das colunas)
-        const colWidths = [
-          { wch: 50 }, // Pergunta/Funcionário
-          { wch: 15 }, // Média/Cargo
-          { wch: 15 }, // Status/Setor
-          { wch: 12 }, // Nunca/P1
-          { wch: 12 }, // Raramente/P2
-          { wch: 12 }, // Às vezes/P3
-          { wch: 15 }, // Frequentemente/P4
-          { wch: 12 }, // Sempre/P5
-          { wch: 15 }, // Média Individual
-        ];
-        worksheet['!cols'] = colWidths;
-
-        // Gerar nome do arquivo
-        const fileName = `relatorio_resultados_${formularioSelecionado.nome.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-        // Download do arquivo
-        XLSX.writeFile(workbook, fileName);
-
-        toast.success('Relatório exportado com sucesso!');
-      } catch (error) {
-        console.error('Erro ao exportar relatório:', error);
-        toast.error('Erro ao exportar relatório. Tente novamente.');
+          reportData.push(row);
+        });
       }
+
+      // Criar planilha Excel
+      const worksheet = XLSX.utils.aoa_to_sheet(reportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório de Resultados");
+
+      // Aplicar estilos básicos (largura das colunas)
+      const colWidths = [
+        { wch: 50 }, // Pergunta/Funcionário
+        { wch: 15 }, // Média/Cargo
+        { wch: 15 }, // Status/Setor
+        { wch: 12 }, // Nunca/P1
+        { wch: 12 }, // Raramente/P2
+        { wch: 12 }, // Às vezes/P3
+        { wch: 15 }, // Frequentemente/P4
+        { wch: 12 }, // Sempre/P5
+        { wch: 15 }, // Média Individual
+      ];
+      worksheet['!cols'] = colWidths;
+
+      // Gerar nome do arquivo
+      const nomeArquivo = formularioSelecionado 
+        ? formularioSelecionado.nome.replace(/[^a-zA-Z0-9]/g, '_')
+        : 'todos_formularios';
+      const fileName = `relatorio_resultados_${nomeArquivo}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download do arquivo
+      XLSX.writeFile(workbook, fileName);
+
+      toast.success('Relatório exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar relatório:', error);
+      toast.error('Erro ao exportar relatório. Tente novamente.');
     }
   };
 
@@ -743,8 +583,15 @@ export default function DashboardResultados() {
         </div>
         <div className="flex space-x-3">
           <Select
-            value={mostrarTodosFormularios ? 'todos' : (formularioSelecionado?.nome || '')}
-            onValueChange={handleFormularioChange}
+            value={formularioSelecionado?.nome || 'todos'}
+            onValueChange={(value) => {
+              if (value === 'todos') {
+                setFormularioSelecionado(null)
+              } else {
+                const formulario = findFormularioByName(value)
+                setFormularioSelecionado(formulario)
+              }
+            }}
           >
             <SelectTrigger className="w-64">
               <SelectValue placeholder="Selecione um formulário"/>
@@ -761,7 +608,7 @@ export default function DashboardResultados() {
           <Button
             variant="outline"
             onClick={handleExportReport}
-            disabled={mostrarTodosFormularios ? formulariosComDadosFiltrados.length === 0 : (!formularioSelecionado || perguntas.length === 0)}
+            disabled={formularios.length === 0}
           >
             <Download className="w-4 h-4 mr-2"/>
             Exportar Relatório
@@ -769,7 +616,7 @@ export default function DashboardResultados() {
         </div>
       </motion.div>
 
-      {/* Filters - Always show */}
+      {/* Filters */}
       <motion.div
         initial={{opacity: 0, y: 20}}
         animate={{opacity: 1, y: 0}}
@@ -829,18 +676,14 @@ export default function DashboardResultados() {
         initial={{opacity: 0, y: 20}}
         animate={{opacity: 1, y: 0}}
         transition={{delay: 0.2}}
-        className="grid grid-cols-1 md:grid-cols-4 gap-6"
+        className="grid grid-cols-1 md:grid-cols-5 gap-6"
       >
         <Card className="card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">
-                  {mostrarTodosFormularios ? 'Total de Formulários' : 'Total de Respostas'}
-                </p>
-                <p className="text-2xl font-bold text-foreground">
-                  {mostrarTodosFormularios ? formulariosComDadosFiltrados.length : respostasFiltradas.length}
-                </p>
+                <p className="text-sm text-gray-600">Total de Respostas</p>
+                <p className="text-2xl font-bold text-foreground">{respostasFiltradas.length}</p>
               </div>
               <Users className="w-8 h-8 text-brand-blue"/>
             </div>
@@ -853,29 +696,14 @@ export default function DashboardResultados() {
               <div>
                 <p className="text-sm text-gray-600">Média Geral</p>
                 <div className="flex items-center space-x-2">
-                  <p className={`text-2xl font-bold ${getStatusColor(
-                    mostrarTodosFormularios 
-                      ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
-                      : (mediaGeral || 0)
-                  )}`}>
-                    {mostrarTodosFormularios 
-                      ? (formulariosComDadosFiltrados.length > 0 ? (formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length).toFixed(1) : '0.0')
-                      : (mediaGeral?.toFixed(1) || '0.0')
-                    }
+                  <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)}`}>
+                    {mediaGeral?.toFixed(1) || '0.0'}
                   </p>
                   <Badge
                     variant="secondary"
-                    className={`${getStatusColor(
-                      mostrarTodosFormularios 
-                        ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
-                        : (mediaGeral || 0)
-                    )} bg-opacity-10`}
+                    className={`${getStatusColor(mediaGeral || 0)} bg-opacity-10`}
                   >
-                    {getStatusLabel(
-                      mostrarTodosFormularios 
-                        ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
-                        : (mediaGeral || 0)
-                    )}
+                    {getStatusLabel(mediaGeral || 0)}
                   </Badge>
                 </div>
               </div>
@@ -890,10 +718,7 @@ export default function DashboardResultados() {
               <div>
                 <p className="text-sm text-gray-600">Maior Pontuação</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {mostrarTodosFormularios 
-                    ? (formulariosComDadosFiltrados.length > 0 ? Math.max(...formulariosComDadosFiltrados.map(f => f.mediaGeral)).toFixed(1) : '0.0')
-                    : (mediasRespostas.length > 0 ? Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1) : '0.0')
-                  }
+                  {mediasRespostas.length > 0 ? Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1) : '0.0'}
                 </p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-600"/>
@@ -906,172 +731,36 @@ export default function DashboardResultados() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">
-                  {mostrarTodosFormularios ? 'Total de Respostas' : 'Total de Perguntas'}
+                  {formularioSelecionado ? 'Total de Perguntas' : 'Total de Formulários'}
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {mostrarTodosFormularios 
-                    ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.totalRespostas, 0)
-                    : perguntas.length
-                  }
+                  {formularioSelecionado ? perguntas.length : formularios.length}
                 </p>
               </div>
               <BarChart3 className="w-8 h-8 text-purple-600"/>
             </div>
           </CardContent>
         </Card>
-      </motion.div>
 
-      {/* Risk Matrix */}
-      {matrizRisco.length > 0 && (
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.3}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-orange-600"/>
-                <span>Matriz de Risco</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {/* Risk Matrix Grid */}
-                <div className="overflow-x-auto">
-                  <div className="min-w-[600px]">
-                    {/* Header */}
-                    <div className="grid grid-cols-7 gap-1 mb-2">
-                      <div className="bg-gray-100 p-2 text-center font-bold text-sm">MATRIZ DE RISCO</div>
-                      <div className="bg-blue-100 p-2 text-center font-bold text-sm">LEVE<br/>1</div>
-                      <div className="bg-blue-200 p-2 text-center font-bold text-sm">BAIXA<br/>2</div>
-                      <div className="bg-yellow-200 p-2 text-center font-bold text-sm">MODERADO<br/>3</div>
-                      <div className="bg-orange-200 p-2 text-center font-bold text-sm">ALTA<br/>4</div>
-                      <div className="bg-red-200 p-2 text-center font-bold text-sm">EXTREMA<br/>5</div>
-                      <div className="bg-gray-100 p-2 text-center font-bold text-sm">SEVERIDADE</div>
-                    </div>
-
-                    {/* Probability rows */}
-                    {[
-                      { label: 'ALTO', value: 5, color: 'bg-blue-100' },
-                      { label: 'ELEVADO', value: 4, color: 'bg-blue-100' },
-                      { label: 'MODERADO', value: 3, color: 'bg-blue-100' },
-                      { label: 'TOLERÁVEL', value: 2, color: 'bg-blue-100' },
-                      { label: 'BAIXO', value: 1, color: 'bg-blue-100' }
-                    ].map((prob) => (
-                      <div key={prob.value} className="grid grid-cols-7 gap-1 mb-1">
-                        <div className={`${prob.color} p-2 text-center font-bold text-sm flex items-center justify-center`}>
-                          {prob.label}<br/>{prob.value}
-                        </div>
-                        {[1, 2, 3, 4, 5].map((sev) => {
-                          const risco = prob.value * sev;
-                          let bgColor = '';
-                          let textColor = 'text-black';
-                          
-                          if (risco >= 1 && risco <= 3) {
-                            bgColor = 'bg-green-400';
-                          } else if (risco >= 4 && risco <= 8) {
-                            bgColor = 'bg-cyan-400';
-                          } else if (risco >= 9 && risco <= 12) {
-                            bgColor = 'bg-yellow-400';
-                          } else if (risco >= 13 && risco <= 19) {
-                            bgColor = 'bg-orange-400';
-                          } else {
-                            bgColor = 'bg-red-400';
-                            textColor = 'text-white';
-                          }
-
-                          return (
-                            <div key={sev} className={`${bgColor} ${textColor} p-2 text-center font-bold text-sm flex items-center justify-center`}>
-                              {risco}
-                            </div>
-                          );
-                        })}
-                        <div className="bg-gray-100 p-2 text-center font-bold text-sm flex items-center justify-center rotate-90">
-                          PROBABILIDADE
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Legend */}
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mt-6">
-                  <div className="text-center">
-                    <div className="bg-green-400 p-2 rounded font-bold text-sm mb-1">1-3</div>
-                    <div className="text-xs font-medium">Trivial</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-cyan-400 p-2 rounded font-bold text-sm mb-1">4-8</div>
-                    <div className="text-xs font-medium">Tolerável</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-yellow-400 p-2 rounded font-bold text-sm mb-1">9-12</div>
-                    <div className="text-xs font-medium">Moderado</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-orange-400 p-2 rounded font-bold text-sm mb-1">13-19</div>
-                    <div className="text-xs font-medium">Alto</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-red-400 text-white p-2 rounded font-bold text-sm mb-1">20-25</div>
-                    <div className="text-xs font-medium">Extremo</div>
-                  </div>
-                </div>
-
-                {/* Risk Items List */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-lg">
-                    {mostrarTodosFormularios ? 'Análise de Risco por Formulário' : 'Análise de Risco por Pergunta'}
-                  </h4>
-                  <div className="grid gap-3">
-                    {matrizRisco
-                      .sort((a, b) => b.risco - a.risco) // Ordenar por risco (maior primeiro)
-                      .map((item, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{opacity: 0, x: -20}}
-                          animate={{opacity: 1, x: 0}}
-                          transition={{delay: 0.1 * index}}
-                          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex-1">
-                            <h5 className="font-medium text-foreground mb-1">
-                              {item.pergunta.length > 60 ? item.pergunta.substring(0, 60) + '...' : item.pergunta}
-                            </h5>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600">
-                              <span>Probabilidade: {item.probabilidade}</span>
-                              <span>Severidade: {item.severidade}</span>
-                              <span>Risco: {item.risco}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div 
-                              className="w-4 h-4 rounded-full"
-                              style={{ backgroundColor: item.cor }}
-                            />
-                            <Badge 
-                              variant="secondary"
-                              style={{ 
-                                backgroundColor: item.cor + '20',
-                                color: item.cor,
-                                borderColor: item.cor
-                              }}
-                            >
-                              {item.nivel}
-                            </Badge>
-                          </div>
-                        </motion.div>
-                      ))}
-                  </div>
+        <Card className="card">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Classificação de Risco</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-lg font-bold text-foreground">{classificacaoRisco.soma}</p>
+                  <Badge className={`${getRiskColor(classificacaoRisco.cor)}`}>
+                    {classificacaoRisco.nivel}
+                  </Badge>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+              <AlertTriangle className="w-8 h-8 text-orange-600"/>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
-      {/* Bar Chart - Média por Pergunta ou por Formulário */}
+      {/* Bar Chart - Média por Pergunta/Formulário */}
       {chartData.length > 0 && (
         <motion.div
           initial={{opacity: 0, y: 20}}
@@ -1081,7 +770,7 @@ export default function DashboardResultados() {
           <Card className="card">
             <CardHeader>
               <CardTitle>
-                {mostrarTodosFormularios ? 'Média por Formulário' : 'Média por Pergunta'}
+                {formularioSelecionado ? 'Média por Pergunta' : 'Média por Formulário'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -1098,18 +787,7 @@ export default function DashboardResultados() {
                   />
                   <YAxis domain={[0, 5]}/>
                   <Tooltip
-                    formatter={(value: any, name: any, props: any) => {
-                      const item = props?.payload;
-                      if (mostrarTodosFormularios) {
-                        return [
-                          `${Number(value).toFixed(1)}`,
-                          'Média',
-                          `Total de Respostas: ${item?.totalRespostas || 0}`
-                        ];
-                      } else {
-                        return [`${Number(value).toFixed(1)}`, 'Média'];
-                      }
-                    }}
+                    formatter={(value: any) => [`${Number(value).toFixed(1)}`, 'Média']}
                     labelFormatter={(label: any, payload: any) => {
                       const item = payload?.[0]?.payload
                       return item?.perguntaCompleta || label
@@ -1123,47 +801,45 @@ export default function DashboardResultados() {
         </motion.div>
       )}
 
-      {/* Line Chart - Tendência - Only show when not showing all forms */}
-      {!mostrarTodosFormularios && (
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.8}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={500}>
-                <LineChart data={tendenciaData}>
-                  <CartesianGrid strokeDasharray="3 3"/>
-                  <XAxis dataKey="mes"/>
-                  <YAxis domain={[0, 5]}/>
-                  <Tooltip/>
-                  <Line
-                    type="monotone"
-                    dataKey="satisfacao"
-                    stroke="#73C24F"
-                    strokeWidth={3}
-                    name="Satisfação"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="treinamento"
-                    stroke="#337AC7"
-                    strokeWidth={3}
-                    name="Treinamento"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+      {/* Line Chart - Tendência */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        transition={{delay: 0.8}}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle>Tendência ao Longo do Tempo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={500}>
+              <LineChart data={tendenciaData}>
+                <CartesianGrid strokeDasharray="3 3"/>
+                <XAxis dataKey="mes"/>
+                <YAxis domain={[0, 5]}/>
+                <Tooltip/>
+                <Line
+                  type="monotone"
+                  dataKey="satisfacao"
+                  stroke="#73C24F"
+                  strokeWidth={3}
+                  name="Satisfação"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="treinamento"
+                  stroke="#337AC7"
+                  strokeWidth={3}
+                  name="Treinamento"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Detailed Results Table */}
-      {((mostrarTodosFormularios && formulariosComDadosFiltrados.length > 0) || (!mostrarTodosFormularios && perguntas.length > 0)) && (
+      {(formularioSelecionado ? perguntas.length > 0 : formularios.length > 0) && (
         <motion.div
           initial={{opacity: 0, y: 20}}
           animate={{opacity: 1, y: 0}}
@@ -1179,55 +855,18 @@ export default function DashboardResultados() {
                   <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-medium text-foreground">
-                      {mostrarTodosFormularios ? 'Formulário' : 'Pergunta'}
+                      {formularioSelecionado ? 'Pergunta' : 'Formulário'}
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-foreground">Média</th>
                     <th className="text-left py-3 px-4 font-medium text-foreground">Status</th>
-                    {mostrarTodosFormularios ? (
-                      <>
-                        <th className="text-left py-3 px-4 font-medium text-foreground">Total de Respostas</th>
-                        <th className="text-left py-3 px-4 font-medium text-foreground">Total de Perguntas</th>
-                      </>
-                    ) : (
-                      <th className="text-left py-3 px-4 font-medium text-foreground">Distribuição</th>
-                    )}
+                    <th className="text-left py-3 px-4 font-medium text-foreground">
+                      {formularioSelecionado ? 'Distribuição' : 'Total de Respostas'}
+                    </th>
                   </tr>
                   </thead>
                   <tbody>
-                  {mostrarTodosFormularios ? (
-                    formulariosComDadosFiltrados.map((item, index) => (
-                      <motion.tr
-                        key={item.formulario.id}
-                        initial={{opacity: 0, y: 10}}
-                        animate={{opacity: 1, y: 0}}
-                        transition={{delay: 0.1 * index}}
-                        className="border-b border-gray-100 hover:bg-white/30 transition-colors"
-                      >
-                        <td className="py-3 px-4 text-foreground max-w-xs">
-                          {item.formulario.nome}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`text-lg font-bold ${getStatusColor(item.mediaGeral)}`}>
-                            {item.mediaGeral.toFixed(1)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant="secondary"
-                            className={`${getStatusColor(item.mediaGeral)} bg-opacity-10`}
-                          >
-                            {getStatusLabel(item.mediaGeral)}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-foreground">
-                          {item.totalRespostas}
-                        </td>
-                        <td className="py-3 px-4 text-foreground">
-                          {item.perguntas.length}
-                        </td>
-                      </motion.tr>
-                    ))
-                  ) : (
+                  {formularioSelecionado ? (
+                    // Show questions when specific form is selected
                     perguntas.map((pergunta, index) => {
                       const media = mediasRespostas[index]?.valor || 0
                       const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || []
@@ -1268,6 +907,46 @@ export default function DashboardResultados() {
                                 </div>
                               ))}
                             </div>
+                          </td>
+                        </motion.tr>
+                      )
+                    })
+                  ) : (
+                    // Show forms when "todos" is selected
+                    formularios.map((formulario, index) => {
+                      const respostasForm = respostasFiltradas.filter(r => r.formulario_id === formulario.id)
+                      const media = respostasForm.length > 0 
+                        ? respostasForm.reduce((sum, r) => sum + r.valor, 0) / respostasForm.length 
+                        : 0
+
+                      return (
+                        <motion.tr
+                          key={formulario.id}
+                          initial={{opacity: 0, y: 10}}
+                          animate={{opacity: 1, y: 0}}
+                          transition={{delay: 0.1 * index}}
+                          className="border-b border-gray-100 hover:bg-white/30 transition-colors"
+                        >
+                          <td className="py-3 px-4 text-foreground max-w-xs">
+                            {formulario.nome}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`text-lg font-bold ${getStatusColor(media)}`}>
+                              {media.toFixed(1)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge
+                              variant="secondary"
+                              className={`${getStatusColor(media)} bg-opacity-10`}
+                            >
+                              {getStatusLabel(media)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="text-lg font-bold text-foreground">
+                              {respostasForm.length}
+                            </span>
                           </td>
                         </motion.tr>
                       )

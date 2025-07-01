@@ -30,19 +30,9 @@ import {formularioService} from "@/services/formulario";
 import {perguntaService} from "@/services/pergunta";
 import * as XLSX from 'xlsx';
 
-interface Media {
-  idPergunta: string;
-  valor: number;
-}
-
 interface Distribuicao {
   valor: number;
   quantidade: number;
-}
-
-interface PerguntasComDistribuicao {
-  idPergunta: string;
-  distribuicoes: Distribuicao[];
 }
 
 export default function DashboardResultados() {
@@ -381,16 +371,16 @@ export default function DashboardResultados() {
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981']
 
   const getStatusColor = (media: number) => {
-    if (media >= 4.5) return 'text-green-600'
-    if (media >= 3.5) return 'text-yellow-600'
-    return 'text-red-600'
+    if (media >= 4.5) return 'text-red-600 bg-red-100'
+    if (media >= 3.5) return 'text-yellow-600 bg-yellow-100'
+    return 'text-green-600 bg-green-100'
   }
 
   const getStatusLabel = (media: number) => {
-    if (media >= 4.5) return 'Excelente'
-    if (media >= 3.5) return 'Bom'
-    if (media >= 2.5) return 'Regular'
-    return 'Ruim'
+    if (media >= 4.5) return 'Ruim'
+    if (media >= 3.5) return 'Regular'
+    if (media >= 2.5) return 'Bom'
+    return 'Excelente'
   }
 
   const getRiskColor = (cor: string) => {
@@ -434,7 +424,7 @@ export default function DashboardResultados() {
       reportData.push(['Total de Respostas:', respostasFiltradas.length]);
       reportData.push(['Média Geral:', mediaGeral?.toFixed(2) || '0.00']);
       reportData.push(['Status:', getStatusLabel(mediaGeral || 0)]);
-      reportData.push(['Classificação de Risco:', classificacaoRisco.nivel]);
+      reportData.push(['Matriz de Risco:', classificacaoRisco.nivel]);
       reportData.push(['Soma Total das Respostas:', classificacaoRisco.soma]);
       reportData.push(['']); // Linha vazia
 
@@ -742,12 +732,12 @@ export default function DashboardResultados() {
               <div>
                 <p className="text-sm text-gray-600">Média Geral</p>
                 <div className="flex items-center space-x-2">
-                  <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)}`}>
+                  <p className={`text-2xl font-bold ${getStatusColor(mediaGeral || 0)} bg-transparent`}>
                     {mediaGeral?.toFixed(1) || '0.0'}
                   </p>
                   <Badge
                     variant="secondary"
-                    className={`${getStatusColor(mediaGeral || 0)} bg-opacity-10`}
+                    className={`${getStatusColor(mediaGeral || 0)}`}
                   >
                     {getStatusLabel(mediaGeral || 0)}
                   </Badge>
@@ -763,7 +753,7 @@ export default function DashboardResultados() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Maior Pontuação</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-red-600">
                   {mediasRespostas.length > 0 ? Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1) : '0.0'}
                 </p>
               </div>
@@ -792,10 +782,13 @@ export default function DashboardResultados() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Classificação de Risco</p>
+                <p className="text-sm text-gray-600">Matriz de Risco</p>
                 <div className="flex items-center space-x-2">
                   <p className="text-lg font-bold text-foreground">{classificacaoRisco.soma}</p>
-                  <Badge className={`${getRiskColor(classificacaoRisco.cor)}`}>
+                  <Badge
+                    variant="secondary"
+                    className={`${getRiskColor(classificacaoRisco.cor)}`}
+                  >
                     {classificacaoRisco.nivel}
                   </Badge>
                 </div>
@@ -848,47 +841,47 @@ export default function DashboardResultados() {
       )}
 
       {/* Line Chart - Tendência Real */}
-      {tendenciaData.length > 0 && (
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.6}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
-              <p className="text-sm text-gray-600">
-                Evolução da média das respostas por mês
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={tendenciaData}>
-                  <CartesianGrid strokeDasharray="3 3"/>
-                  <XAxis dataKey="mes"/>
-                  <YAxis domain={[0, 5]}/>
-                  <Tooltip
-                    formatter={(value: any, name: string) => [
-                      name === 'media' ? `${Number(value).toFixed(2)}` : value,
-                      name === 'media' ? 'Média' : 'Total de Respostas'
-                    ]}
-                    labelFormatter={(label) => `Período: ${label}`}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="media"
-                    stroke="#73C24F"
-                    strokeWidth={3}
-                    name="Média"
-                    dot={{ fill: '#73C24F', strokeWidth: 2, r: 6 }}
-                    activeDot={{ r: 8, stroke: '#73C24F', strokeWidth: 2 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+      {/*{tendenciaData.length > 0 && (*/}
+      {/*  <motion.div*/}
+      {/*    initial={{opacity: 0, y: 20}}*/}
+      {/*    animate={{opacity: 1, y: 0}}*/}
+      {/*    transition={{delay: 0.6}}*/}
+      {/*  >*/}
+      {/*    <Card className="card">*/}
+      {/*      <CardHeader>*/}
+      {/*        <CardTitle>Tendência ao Longo do Tempo</CardTitle>*/}
+      {/*        <p className="text-sm text-gray-600">*/}
+      {/*          Evolução da média das respostas por mês*/}
+      {/*        </p>*/}
+      {/*      </CardHeader>*/}
+      {/*      <CardContent>*/}
+      {/*        <ResponsiveContainer width="100%" height={400}>*/}
+      {/*          <LineChart data={tendenciaData}>*/}
+      {/*            <CartesianGrid strokeDasharray="3 3"/>*/}
+      {/*            <XAxis dataKey="mes"/>*/}
+      {/*            <YAxis domain={[0, 5]}/>*/}
+      {/*            <Tooltip*/}
+      {/*              formatter={(value: any, name: string) => [*/}
+      {/*                name === 'media' ? `${Number(value).toFixed(2)}` : value,*/}
+      {/*                name === 'media' ? 'Média' : 'Total de Respostas'*/}
+      {/*              ]}*/}
+      {/*              labelFormatter={(label) => `Período: ${label}`}*/}
+      {/*            />*/}
+      {/*            <Line*/}
+      {/*              type="monotone"*/}
+      {/*              dataKey="media"*/}
+      {/*              stroke="#73C24F"*/}
+      {/*              strokeWidth={3}*/}
+      {/*              name="Média"*/}
+      {/*              dot={{ fill: '#73C24F', strokeWidth: 2, r: 6 }}*/}
+      {/*              activeDot={{ r: 8, stroke: '#73C24F', strokeWidth: 2 }}*/}
+      {/*            />*/}
+      {/*          </LineChart>*/}
+      {/*        </ResponsiveContainer>*/}
+      {/*      </CardContent>*/}
+      {/*    </Card>*/}
+      {/*  </motion.div>*/}
+      {/*)}*/}
 
       {/* Show message when no trend data */}
       {tendenciaData.length === 0 && respostasFiltradas.length > 0 && (
@@ -961,14 +954,14 @@ export default function DashboardResultados() {
                             {pergunta.texto}
                           </td>
                           <td className="py-3 px-4">
-                            <span className={`text-lg font-bold ${getStatusColor(media)}`}>
+                            <span className={`text-lg font-bold ${getStatusColor(media)} bg-transparent`}>
                               {media.toFixed(1)}
                             </span>
                           </td>
                           <td className="py-3 px-4">
                             <Badge
                               variant="secondary"
-                              className={`${getStatusColor(media)} bg-opacity-10`}
+                              className={`${getStatusColor(media)}`}
                             >
                               {getStatusLabel(media)}
                             </Badge>
@@ -1016,7 +1009,7 @@ export default function DashboardResultados() {
                           <td className="py-3 px-4">
                             <Badge
                               variant="secondary"
-                              className={`${getStatusColor(media)} bg-opacity-10`}
+                              className={`${getStatusColor(media)}`}
                             >
                               {getStatusLabel(media)}
                             </Badge>

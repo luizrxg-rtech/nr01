@@ -223,6 +223,37 @@ export default function DashboardResultados() {
     return filtered;
   }, [respostas, funcionarioSelecionado, setorSelecionado, funcionarios]);
 
+  // Filter all forms data based on selected funcionario and setor
+  const formulariosComDadosFiltrados = useMemo(() => {
+    if (!mostrarTodosFormularios) return formulariosComDados;
+
+    return formulariosComDados.map(item => {
+      let respostasFiltradas = item.respostas;
+
+      if (funcionarioSelecionado !== 'todos') {
+        respostasFiltradas = respostasFiltradas.filter(r => r.funcionario_id === funcionarioSelecionado);
+      }
+
+      if (setorSelecionado !== 'todos') {
+        const funcionariosDoSetor = funcionarios.filter(f => f.setor === setorSelecionado);
+        const idsDoSetor = funcionariosDoSetor.map(f => f.id);
+        respostasFiltradas = respostasFiltradas.filter(r => idsDoSetor.includes(r.funcionario_id));
+      }
+
+      // Recalcular média com respostas filtradas
+      const mediaGeral = respostasFiltradas.length > 0 
+        ? respostasFiltradas.reduce((sum, r) => sum + r.valor, 0) / respostasFiltradas.length 
+        : 0;
+
+      return {
+        ...item,
+        respostas: respostasFiltradas,
+        mediaGeral,
+        totalRespostas: respostasFiltradas.length
+      };
+    });
+  }, [formulariosComDados, funcionarioSelecionado, setorSelecionado, funcionarios, mostrarTodosFormularios]);
+
   // Calculate metrics when filtered data changes
   const mediasRespostas = useMemo(() => {
     if (respostasFiltradas.length === 0 || perguntas.length === 0) return [];
@@ -280,8 +311,8 @@ export default function DashboardResultados() {
 
   const chartData = useMemo(() => {
     if (mostrarTodosFormularios) {
-      // Dados para gráfico de todos os formulários
-      return formulariosComDados.map(item => ({
+      // Dados para gráfico de todos os formulários (com filtros aplicados)
+      return formulariosComDadosFiltrados.map(item => ({
         pergunta: item.formulario.nome.substring(0, 30) + (item.formulario.nome.length > 30 ? '...' : ''),
         media: item.mediaGeral,
         perguntaCompleta: item.formulario.nome,
@@ -295,7 +326,7 @@ export default function DashboardResultados() {
         perguntaCompleta: p.texto
       })) || []
     }
-  }, [perguntas, mediasRespostas, mostrarTodosFormularios, formulariosComDados])
+  }, [perguntas, mediasRespostas, mostrarTodosFormularios, formulariosComDadosFiltrados])
 
   const distribuicaoData = useMemo(() => {
     if (perguntasComDistribuicoes.length === 0 || respostasFiltradas.length === 0) return []
@@ -348,7 +379,7 @@ export default function DashboardResultados() {
   const handleExportReport = () => {
     if (mostrarTodosFormularios) {
       // Export para todos os formulários
-      if (formulariosComDados.length === 0) {
+      if (formulariosComDadosFiltrados.length === 0) {
         toast.error('Nenhum dado de formulário para exportar');
         return;
       }
@@ -361,10 +392,18 @@ export default function DashboardResultados() {
         reportData.push(['Gerado em:', new Date().toLocaleDateString('pt-BR')]);
         reportData.push(['']); // Linha vazia
 
+        // Filtros aplicados
+        reportData.push(['FILTROS APLICADOS']);
+        reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
+        reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
+        reportData.push(['']); // Linha vazia
+
         // Resumo geral
         reportData.push(['RESUMO GERAL']);
-        reportData.push(['Total de Formulários:', formulariosComDados.length]);
-        const mediaGeralTodos = formulariosComDados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDados.length;
+        reportData.push(['Total de Formulários:', formulariosComDadosFiltrados.length]);
+        const mediaGeralTodos = formulariosComDadosFiltrados.length > 0 
+          ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length 
+          : 0;
         reportData.push(['Média Geral de Todos os Formulários:', mediaGeralTodos.toFixed(2)]);
         reportData.push(['']); // Linha vazia
 
@@ -372,7 +411,7 @@ export default function DashboardResultados() {
         reportData.push(['RESULTADOS POR FORMULÁRIO']);
         reportData.push(['Nome do Formulário', 'Média Geral', 'Status', 'Total de Respostas', 'Total de Perguntas']);
 
-        formulariosComDados.forEach((item) => {
+        formulariosComDadosFiltrados.forEach((item) => {
           reportData.push([
             item.formulario.nome,
             item.mediaGeral.toFixed(2),
@@ -597,7 +636,7 @@ export default function DashboardResultados() {
           <Button
             variant="outline"
             onClick={handleExportReport}
-            disabled={mostrarTodosFormularios ? formulariosComDados.length === 0 : (!formularioSelecionado || perguntas.length === 0)}
+            disabled={mostrarTodosFormularios ? formulariosComDadosFiltrados.length === 0 : (!formularioSelecionado || perguntas.length === 0)}
           >
             <Download className="w-4 h-4 mr-2"/>
             Exportar Relatório
@@ -605,62 +644,60 @@ export default function DashboardResultados() {
         </div>
       </motion.div>
 
-      {/* Filters - Only show when not showing all forms */}
-      {!mostrarTodosFormularios && (
-        <motion.div
-          initial={{opacity: 0, y: 20}}
-          animate={{opacity: 1, y: 0}}
-          transition={{delay: 0.1}}
-        >
-          <Card className="card">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Filter className="w-5 h-5"/>
-                <span>Filtros de Análise</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Funcionário</label>
-                  <Select value={funcionarioSelecionado} onValueChange={setFuncionarioSelecionado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um funcionário"/>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os Funcionários</SelectItem>
-                      {funcionarios
-                        .filter(f => f.status === 'ativo')
-                        .map((funcionario) => (
-                          <SelectItem key={funcionario.id} value={funcionario.id}>
-                            {funcionario.nome} - {funcionario.cargo}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Setor</label>
-                  <Select value={setorSelecionado} onValueChange={setSetorSelecionado}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um setor"/>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="todos">Todos os Setores</SelectItem>
-                      {setoresUnicos.map((setor) => (
-                        <SelectItem key={setor} value={setor}>
-                          {setor}
+      {/* Filters - Always show */}
+      <motion.div
+        initial={{opacity: 0, y: 20}}
+        animate={{opacity: 1, y: 0}}
+        transition={{delay: 0.1}}
+      >
+        <Card className="card">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Filter className="w-5 h-5"/>
+              <span>Filtros de Análise</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Funcionário</label>
+                <Select value={funcionarioSelecionado} onValueChange={setFuncionarioSelecionado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um funcionário"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Funcionários</SelectItem>
+                    {funcionarios
+                      .filter(f => f.status === 'ativo')
+                      .map((funcionario) => (
+                        <SelectItem key={funcionario.id} value={funcionario.id}>
+                          {funcionario.nome} - {funcionario.cargo}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Setor</label>
+                <Select value={setorSelecionado} onValueChange={setSetorSelecionado}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um setor"/>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Setores</SelectItem>
+                    {setoresUnicos.map((setor) => (
+                      <SelectItem key={setor} value={setor}>
+                        {setor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Overview Cards */}
       <motion.div
@@ -677,7 +714,7 @@ export default function DashboardResultados() {
                   {mostrarTodosFormularios ? 'Total de Formulários' : 'Total de Respostas'}
                 </p>
                 <p className="text-2xl font-bold text-foreground">
-                  {mostrarTodosFormularios ? formulariosComDados.length : respostasFiltradas.length}
+                  {mostrarTodosFormularios ? formulariosComDadosFiltrados.length : respostasFiltradas.length}
                 </p>
               </div>
               <Users className="w-8 h-8 text-brand-blue"/>
@@ -693,11 +730,11 @@ export default function DashboardResultados() {
                 <div className="flex items-center space-x-2">
                   <p className={`text-2xl font-bold ${getStatusColor(
                     mostrarTodosFormularios 
-                      ? (formulariosComDados.length > 0 ? formulariosComDados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDados.length : 0)
+                      ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
                       : (mediaGeral || 0)
                   )}`}>
                     {mostrarTodosFormularios 
-                      ? (formulariosComDados.length > 0 ? (formulariosComDados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDados.length).toFixed(1) : '0.0')
+                      ? (formulariosComDadosFiltrados.length > 0 ? (formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length).toFixed(1) : '0.0')
                       : (mediaGeral?.toFixed(1) || '0.0')
                     }
                   </p>
@@ -705,13 +742,13 @@ export default function DashboardResultados() {
                     variant="secondary"
                     className={`${getStatusColor(
                       mostrarTodosFormularios 
-                        ? (formulariosComDados.length > 0 ? formulariosComDados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDados.length : 0)
+                        ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
                         : (mediaGeral || 0)
                     )} bg-opacity-10`}
                   >
                     {getStatusLabel(
                       mostrarTodosFormularios 
-                        ? (formulariosComDados.length > 0 ? formulariosComDados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDados.length : 0)
+                        ? (formulariosComDadosFiltrados.length > 0 ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.mediaGeral, 0) / formulariosComDadosFiltrados.length : 0)
                         : (mediaGeral || 0)
                     )}
                   </Badge>
@@ -729,7 +766,7 @@ export default function DashboardResultados() {
                 <p className="text-sm text-gray-600">Maior Pontuação</p>
                 <p className="text-2xl font-bold text-green-600">
                   {mostrarTodosFormularios 
-                    ? (formulariosComDados.length > 0 ? Math.max(...formulariosComDados.map(f => f.mediaGeral)).toFixed(1) : '0.0')
+                    ? (formulariosComDadosFiltrados.length > 0 ? Math.max(...formulariosComDadosFiltrados.map(f => f.mediaGeral)).toFixed(1) : '0.0')
                     : (mediasRespostas.length > 0 ? Math.max(...mediasRespostas.map(m => m.valor)).toFixed(1) : '0.0')
                   }
                 </p>
@@ -748,7 +785,7 @@ export default function DashboardResultados() {
                 </p>
                 <p className="text-2xl font-bold text-foreground">
                   {mostrarTodosFormularios 
-                    ? formulariosComDados.reduce((sum, f) => sum + f.totalRespostas, 0)
+                    ? formulariosComDadosFiltrados.reduce((sum, f) => sum + f.totalRespostas, 0)
                     : perguntas.length
                   }
                 </p>
@@ -851,7 +888,7 @@ export default function DashboardResultados() {
       )}
 
       {/* Detailed Results Table */}
-      {((mostrarTodosFormularios && formulariosComDados.length > 0) || (!mostrarTodosFormularios && perguntas.length > 0)) && (
+      {((mostrarTodosFormularios && formulariosComDadosFiltrados.length > 0) || (!mostrarTodosFormularios && perguntas.length > 0)) && (
         <motion.div
           initial={{opacity: 0, y: 20}}
           animate={{opacity: 1, y: 0}}
@@ -883,7 +920,7 @@ export default function DashboardResultados() {
                   </thead>
                   <tbody>
                   {mostrarTodosFormularios ? (
-                    formulariosComDados.map((item, index) => (
+                    formulariosComDadosFiltrados.map((item, index) => (
                       <motion.tr
                         key={item.formulario.id}
                         initial={{opacity: 0, y: 10}}

@@ -336,11 +336,47 @@ export default function DashboardResultados() {
     })) || []
   }, [perguntasComDistribuicoes, respostasFiltradas])
 
-  const tendenciaData = useMemo(() => [
-    {mes: 'Jan', satisfacao: 3.2, treinamento: 4.1},
-    {mes: 'Fev', satisfacao: 3.5, treinamento: 4.2},
-    {mes: 'Mar', satisfacao: 3.8, treinamento: 4.3},
-  ], [])
+  // Calculate real trend data based on responses over time
+  const tendenciaData = useMemo(() => {
+    if (respostasFiltradas.length === 0) {
+      return [];
+    }
+
+    // Group responses by month
+    const respostasPorMes: { [key: string]: Resposta[] } = {};
+    
+    respostasFiltradas.forEach(resposta => {
+      const data = new Date(resposta.created_at);
+      const mesAno = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!respostasPorMes[mesAno]) {
+        respostasPorMes[mesAno] = [];
+      }
+      respostasPorMes[mesAno].push(resposta);
+    });
+
+    // Convert to chart data
+    const meses = Object.keys(respostasPorMes).sort();
+    
+    return meses.map(mesAno => {
+      const respostasDoMes = respostasPorMes[mesAno];
+      const mediaDoMes = respostasDoMes.reduce((sum, r) => sum + r.valor, 0) / respostasDoMes.length;
+      
+      // Format month name
+      const [ano, mes] = mesAno.split('-');
+      const nomesMeses = [
+        'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+        'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+      ];
+      const nomeDoMes = nomesMeses[parseInt(mes) - 1];
+      
+      return {
+        mes: `${nomeDoMes}/${ano.slice(-2)}`,
+        media: Number(mediaDoMes.toFixed(2)),
+        totalRespostas: respostasDoMes.length
+      };
+    });
+  }, [respostasFiltradas]);
 
   const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981']
 
@@ -408,6 +444,16 @@ export default function DashboardResultados() {
       reportData.push(['Funcionário:', funcionarioSelecionado === 'todos' ? 'Todos' : funcionarios.find(f => f.id === funcionarioSelecionado)?.nome || 'N/A']);
       reportData.push(['Setor:', setorSelecionado === 'todos' ? 'Todos' : setorSelecionado]);
       reportData.push(['']); // Linha vazia
+
+      // Tendência ao longo do tempo
+      if (tendenciaData.length > 0) {
+        reportData.push(['TENDÊNCIA AO LONGO DO TEMPO']);
+        reportData.push(['Mês/Ano', 'Média', 'Total de Respostas']);
+        tendenciaData.forEach(item => {
+          reportData.push([item.mes, item.media, item.totalRespostas]);
+        });
+        reportData.push(['']); // Linha vazia
+      }
 
       if (formularioSelecionado === null) {
         // Resultados por formulário
@@ -801,49 +847,81 @@ export default function DashboardResultados() {
         </motion.div>
       )}
 
-      {/* Line Chart - Tendência */}
-      <motion.div
-        initial={{opacity: 0, y: 20}}
-        animate={{opacity: 1, y: 0}}
-        transition={{delay: 0.8}}
-      >
-        <Card className="card">
-          <CardHeader>
-            <CardTitle>Tendência ao Longo do Tempo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={500}>
-              <LineChart data={tendenciaData}>
-                <CartesianGrid strokeDasharray="3 3"/>
-                <XAxis dataKey="mes"/>
-                <YAxis domain={[0, 5]}/>
-                <Tooltip/>
-                <Line
-                  type="monotone"
-                  dataKey="satisfacao"
-                  stroke="#73C24F"
-                  strokeWidth={3}
-                  name="Satisfação"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="treinamento"
-                  stroke="#337AC7"
-                  strokeWidth={3}
-                  name="Treinamento"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </motion.div>
+      {/* Line Chart - Tendência Real */}
+      {tendenciaData.length > 0 && (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.6}}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
+              <p className="text-sm text-gray-600">
+                Evolução da média das respostas por mês
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={tendenciaData}>
+                  <CartesianGrid strokeDasharray="3 3"/>
+                  <XAxis dataKey="mes"/>
+                  <YAxis domain={[0, 5]}/>
+                  <Tooltip
+                    formatter={(value: any, name: string) => [
+                      name === 'media' ? `${Number(value).toFixed(2)}` : value,
+                      name === 'media' ? 'Média' : 'Total de Respostas'
+                    ]}
+                    labelFormatter={(label) => `Período: ${label}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="media"
+                    stroke="#73C24F"
+                    strokeWidth={3}
+                    name="Média"
+                    dot={{ fill: '#73C24F', strokeWidth: 2, r: 6 }}
+                    activeDot={{ r: 8, stroke: '#73C24F', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Show message when no trend data */}
+      {tendenciaData.length === 0 && respostasFiltradas.length > 0 && (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.6}}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle>Tendência ao Longo do Tempo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-8">
+                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4"/>
+                <p className="text-gray-600">
+                  Dados insuficientes para mostrar tendência ao longo do tempo
+                </p>
+                <p className="text-sm text-gray-500">
+                  É necessário ter respostas em diferentes meses para visualizar a evolução
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Detailed Results Table */}
       {(formularioSelecionado ? perguntas.length > 0 : formularios.length > 0) && (
         <motion.div
           initial={{opacity: 0, y: 20}}
           animate={{opacity: 1, y: 0}}
-          transition={{delay: 1.2}}
+          transition={{delay: 0.8}}
         >
           <Card className="card">
             <CardHeader>

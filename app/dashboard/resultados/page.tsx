@@ -424,7 +424,7 @@ export default function DashboardResultados() {
       reportData.push(['Total de Respostas:', respostasFiltradas.length]);
       reportData.push(['Média Geral:', mediaGeral?.toFixed(2) || '0.00']);
       reportData.push(['Status:', getStatusLabel(mediaGeral || 0)]);
-      reportData.push(['Matriz de Risco:', classificacaoRisco.nivel]);
+      // reportData.push(['Matriz de Risco:', classificacaoRisco.nivel]);
       reportData.push(['Soma Total das Respostas:', classificacaoRisco.soma]);
       reportData.push(['']); // Linha vazia
 
@@ -778,25 +778,25 @@ export default function DashboardResultados() {
           </CardContent>
         </Card>
 
-        <Card className="card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Matriz de Risco</p>
-                <div className="flex items-center space-x-2">
-                  <p className="text-lg font-bold text-foreground">{classificacaoRisco.soma}</p>
-                  <Badge
-                    variant="secondary"
-                    className={`${getRiskColor(classificacaoRisco.cor)}`}
-                  >
-                    {classificacaoRisco.nivel}
-                  </Badge>
-                </div>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-orange-600"/>
-            </div>
-          </CardContent>
-        </Card>
+        {/*<Card className="card">*/}
+        {/*  <CardContent className="p-6">*/}
+        {/*    <div className="flex items-center justify-between">*/}
+        {/*      <div>*/}
+        {/*        <p className="text-sm text-gray-600">Matriz de Risco</p>*/}
+        {/*        <div className="flex items-center space-x-2">*/}
+        {/*          <p className="text-lg font-bold text-foreground">{classificacaoRisco.soma}</p>*/}
+        {/*          <Badge*/}
+        {/*            variant="secondary"*/}
+        {/*            className={`${getRiskColor(classificacaoRisco.cor)}`}*/}
+        {/*          >*/}
+        {/*            {classificacaoRisco.nivel}*/}
+        {/*          </Badge>*/}
+        {/*        </div>*/}
+        {/*      </div>*/}
+        {/*      <AlertTriangle className="w-8 h-8 text-orange-600"/>*/}
+        {/*    </div>*/}
+        {/*  </CardContent>*/}
+        {/*</Card>*/}
       </motion.div>
 
       {/* Bar Chart - Média por Pergunta/Formulário */}

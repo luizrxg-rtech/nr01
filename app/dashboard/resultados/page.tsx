@@ -19,7 +19,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import {BarChart3, Download, SearchX, Target, TrendingUp, Users, Filter} from 'lucide-react';
+import {BarChart3, Download, SearchX, Target, TrendingUp, Users, Filter, AlertTriangle} from 'lucide-react';
 import {toast} from "sonner";
 import {useAuth} from "@/contexts/AuthContext";
 import {useLoading} from "@/contexts/LoadingContext";
@@ -51,6 +51,15 @@ interface FormularioComDados {
   respostas: Resposta[];
   mediaGeral: number;
   totalRespostas: number;
+}
+
+interface RiskMatrixItem {
+  pergunta: string;
+  probabilidade: number;
+  severidade: number;
+  risco: number;
+  nivel: string;
+  cor: string;
 }
 
 export default function DashboardResultados() {
@@ -303,6 +312,92 @@ export default function DashboardResultados() {
     })
   }, [respostasFiltradas, perguntas]);
 
+  // Risk Matrix Calculation
+  const matrizRisco = useMemo(() => {
+    if (mostrarTodosFormularios) {
+      return formulariosComDadosFiltrados.map(item => {
+        // Para formulários: probabilidade baseada na quantidade de respostas, severidade baseada na média
+        const probabilidade = Math.min(5, Math.max(1, Math.ceil((item.totalRespostas / Math.max(funcionarios.length, 1)) * 5)));
+        const severidade = Math.ceil((6 - item.mediaGeral)); // Inverter: média baixa = severidade alta
+        const risco = probabilidade * severidade;
+        
+        let nivel = '';
+        let cor = '';
+        
+        if (risco >= 1 && risco <= 3) {
+          nivel = 'Trivial';
+          cor = '#22c55e'; // Verde
+        } else if (risco >= 4 && risco <= 8) {
+          nivel = 'Tolerável';
+          cor = '#06b6d4'; // Azul claro
+        } else if (risco >= 9 && risco <= 12) {
+          nivel = 'Moderado';
+          cor = '#eab308'; // Amarelo
+        } else if (risco >= 13 && risco <= 19) {
+          nivel = 'Alto';
+          cor = '#f97316'; // Laranja
+        } else {
+          nivel = 'Extremo';
+          cor = '#ef4444'; // Vermelho
+        }
+
+        return {
+          pergunta: item.formulario.nome,
+          probabilidade,
+          severidade,
+          risco,
+          nivel,
+          cor
+        };
+      });
+    } else {
+      return perguntas.map((pergunta, index) => {
+        const media = mediasRespostas[index]?.valor || 0;
+        const distribuicao = perguntasComDistribuicoes[index]?.distribuicoes || [];
+        
+        // Probabilidade baseada na frequência de respostas baixas (1-2)
+        const respostasBaixas = distribuicao.slice(0, 2).reduce((sum, d) => sum + d.quantidade, 0);
+        const totalRespostasPergunta = distribuicao.reduce((sum, d) => sum + d.quantidade, 0);
+        const probabilidade = totalRespostasPergunta > 0 
+          ? Math.max(1, Math.ceil((respostasBaixas / totalRespostasPergunta) * 5))
+          : 1;
+        
+        // Severidade baseada na média invertida (média baixa = severidade alta)
+        const severidade = Math.ceil((6 - media));
+        const risco = probabilidade * severidade;
+        
+        let nivel = '';
+        let cor = '';
+        
+        if (risco >= 1 && risco <= 3) {
+          nivel = 'Trivial';
+          cor = '#22c55e'; // Verde
+        } else if (risco >= 4 && risco <= 8) {
+          nivel = 'Tolerável';
+          cor = '#06b6d4'; // Azul claro
+        } else if (risco >= 9 && risco <= 12) {
+          nivel = 'Moderado';
+          cor = '#eab308'; // Amarelo
+        } else if (risco >= 13 && risco <= 19) {
+          nivel = 'Alto';
+          cor = '#f97316'; // Laranja
+        } else {
+          nivel = 'Extremo';
+          cor = '#ef4444'; // Vermelho
+        }
+
+        return {
+          pergunta: pergunta.texto,
+          probabilidade,
+          severidade,
+          risco,
+          nivel,
+          cor
+        };
+      });
+    }
+  }, [perguntas, mediasRespostas, perguntasComDistribuicoes, mostrarTodosFormularios, formulariosComDadosFiltrados, funcionarios]);
+
   const findFormularioByName = (nome: string) => {
     return formularios?.find(f =>
       f.nome.toLowerCase().includes(nome?.toLowerCase() || '')
@@ -421,6 +516,21 @@ export default function DashboardResultados() {
           ]);
         });
 
+        // Matriz de Risco
+        reportData.push(['']); // Linha vazia
+        reportData.push(['MATRIZ DE RISCO']);
+        reportData.push(['Formulário', 'Probabilidade', 'Severidade', 'Risco', 'Nível']);
+
+        matrizRisco.forEach((item) => {
+          reportData.push([
+            item.pergunta,
+            item.probabilidade,
+            item.severidade,
+            item.risco,
+            item.nivel
+          ]);
+        });
+
         // Criar planilha Excel
         const worksheet = XLSX.utils.aoa_to_sheet(reportData);
         const workbook = XLSX.utils.book_new();
@@ -493,6 +603,21 @@ export default function DashboardResultados() {
             distribuicao[2]?.quantidade || 0,
             distribuicao[3]?.quantidade || 0,
             distribuicao[4]?.quantidade || 0
+          ]);
+        });
+
+        // Matriz de Risco
+        reportData.push(['']); // Linha vazia
+        reportData.push(['MATRIZ DE RISCO']);
+        reportData.push(['Pergunta', 'Probabilidade', 'Severidade', 'Risco', 'Nível']);
+
+        matrizRisco.forEach((item) => {
+          reportData.push([
+            item.pergunta,
+            item.probabilidade,
+            item.severidade,
+            item.risco,
+            item.nivel
           ]);
         });
 
@@ -795,6 +920,156 @@ export default function DashboardResultados() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Risk Matrix */}
+      {matrizRisco.length > 0 && (
+        <motion.div
+          initial={{opacity: 0, y: 20}}
+          animate={{opacity: 1, y: 0}}
+          transition={{delay: 0.3}}
+        >
+          <Card className="card">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-orange-600"/>
+                <span>Matriz de Risco</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Risk Matrix Grid */}
+                <div className="overflow-x-auto">
+                  <div className="min-w-[600px]">
+                    {/* Header */}
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      <div className="bg-gray-100 p-2 text-center font-bold text-sm">MATRIZ DE RISCO</div>
+                      <div className="bg-blue-100 p-2 text-center font-bold text-sm">LEVE<br/>1</div>
+                      <div className="bg-blue-200 p-2 text-center font-bold text-sm">BAIXA<br/>2</div>
+                      <div className="bg-yellow-200 p-2 text-center font-bold text-sm">MODERADO<br/>3</div>
+                      <div className="bg-orange-200 p-2 text-center font-bold text-sm">ALTA<br/>4</div>
+                      <div className="bg-red-200 p-2 text-center font-bold text-sm">EXTREMA<br/>5</div>
+                      <div className="bg-gray-100 p-2 text-center font-bold text-sm">SEVERIDADE</div>
+                    </div>
+
+                    {/* Probability rows */}
+                    {[
+                      { label: 'ALTO', value: 5, color: 'bg-blue-100' },
+                      { label: 'ELEVADO', value: 4, color: 'bg-blue-100' },
+                      { label: 'MODERADO', value: 3, color: 'bg-blue-100' },
+                      { label: 'TOLERÁVEL', value: 2, color: 'bg-blue-100' },
+                      { label: 'BAIXO', value: 1, color: 'bg-blue-100' }
+                    ].map((prob) => (
+                      <div key={prob.value} className="grid grid-cols-7 gap-1 mb-1">
+                        <div className={`${prob.color} p-2 text-center font-bold text-sm flex items-center justify-center`}>
+                          {prob.label}<br/>{prob.value}
+                        </div>
+                        {[1, 2, 3, 4, 5].map((sev) => {
+                          const risco = prob.value * sev;
+                          let bgColor = '';
+                          let textColor = 'text-black';
+                          
+                          if (risco >= 1 && risco <= 3) {
+                            bgColor = 'bg-green-400';
+                          } else if (risco >= 4 && risco <= 8) {
+                            bgColor = 'bg-cyan-400';
+                          } else if (risco >= 9 && risco <= 12) {
+                            bgColor = 'bg-yellow-400';
+                          } else if (risco >= 13 && risco <= 19) {
+                            bgColor = 'bg-orange-400';
+                          } else {
+                            bgColor = 'bg-red-400';
+                            textColor = 'text-white';
+                          }
+
+                          return (
+                            <div key={sev} className={`${bgColor} ${textColor} p-2 text-center font-bold text-sm flex items-center justify-center`}>
+                              {risco}
+                            </div>
+                          );
+                        })}
+                        <div className="bg-gray-100 p-2 text-center font-bold text-sm flex items-center justify-center rotate-90">
+                          PROBABILIDADE
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 mt-6">
+                  <div className="text-center">
+                    <div className="bg-green-400 p-2 rounded font-bold text-sm mb-1">1-3</div>
+                    <div className="text-xs font-medium">Trivial</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="bg-cyan-400 p-2 rounded font-bold text-sm mb-1">4-8</div>
+                    <div className="text-xs font-medium">Tolerável</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="bg-yellow-400 p-2 rounded font-bold text-sm mb-1">9-12</div>
+                    <div className="text-xs font-medium">Moderado</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="bg-orange-400 p-2 rounded font-bold text-sm mb-1">13-19</div>
+                    <div className="text-xs font-medium">Alto</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="bg-red-400 text-white p-2 rounded font-bold text-sm mb-1">20-25</div>
+                    <div className="text-xs font-medium">Extremo</div>
+                  </div>
+                </div>
+
+                {/* Risk Items List */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-lg">
+                    {mostrarTodosFormularios ? 'Análise de Risco por Formulário' : 'Análise de Risco por Pergunta'}
+                  </h4>
+                  <div className="grid gap-3">
+                    {matrizRisco
+                      .sort((a, b) => b.risco - a.risco) // Ordenar por risco (maior primeiro)
+                      .map((item, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{opacity: 0, x: -20}}
+                          animate={{opacity: 1, x: 0}}
+                          transition={{delay: 0.1 * index}}
+                          className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex-1">
+                            <h5 className="font-medium text-foreground mb-1">
+                              {item.pergunta.length > 60 ? item.pergunta.substring(0, 60) + '...' : item.pergunta}
+                            </h5>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                              <span>Probabilidade: {item.probabilidade}</span>
+                              <span>Severidade: {item.severidade}</span>
+                              <span>Risco: {item.risco}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div 
+                              className="w-4 h-4 rounded-full"
+                              style={{ backgroundColor: item.cor }}
+                            />
+                            <Badge 
+                              variant="secondary"
+                              style={{ 
+                                backgroundColor: item.cor + '20',
+                                color: item.cor,
+                                borderColor: item.cor
+                              }}
+                            >
+                              {item.nivel}
+                            </Badge>
+                          </div>
+                        </motion.div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Bar Chart - Média por Pergunta ou por Formulário */}
       {chartData.length > 0 && (
